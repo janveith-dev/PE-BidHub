@@ -92,7 +92,7 @@ export async function chatTurn(
   const searchTool = defineTool({
     name: 'search_knowledge',
     description:
-      'Durchsucht die Wissensbasis (Produktdokumentation, Konzeptbausteine, Konfigurationen, Preislisten, Zertifikate, Referenzen). Liefert nummerierte Fundstellen mit Gültigkeitsangabe.',
+      'Durchsucht die Wissensbasis (Produktdokumentation, Konzeptbausteine, Konfigurationen, Preislisten, Zertifikate, Referenzen). Liefert nummerierte Fundstellen mit Gültigkeitsangabe. Die Suche versteht Umschreibungen nur begrenzt: Probiere bei einem schwachen Ergebnis Synonyme und verwandte Begriffe aus (z. B. Rechenzentrum, Serverraum, Standort).',
     schema: SearchInput,
     run: async ({ query, categories, vendor }) => {
       const hits = await hybridSearch(db, ctx.embedder, {

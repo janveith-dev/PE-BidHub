@@ -73,7 +73,7 @@ export async function researchSection(
   const searchTool = defineTool({
     name: 'search_knowledge',
     description:
-      'Durchsucht die Wissensbasis von public edge (Produkte, Konzeptbausteine, Konfigurationen, Preislisten, Zertifikate, Referenzen). Abgelaufene Dokumente sind ausgeschlossen. Liefert Fundstellen mit Kürzel (K1 …).',
+      'Durchsucht die Wissensbasis von public edge (Produkte, Konzeptbausteine, Konfigurationen, Preislisten, Zertifikate, Referenzen). Abgelaufene Dokumente sind ausgeschlossen. Liefert Fundstellen mit Kürzel (K1 …). Die Suche versteht Umschreibungen nur begrenzt: Probiere bei einem schwachen Ergebnis Synonyme und verwandte Begriffe aus (z. B. Rechenzentrum, Serverraum, Standort).',
     schema: SearchInput,
     run: async ({ query, categories, vendor }) => {
       const hits = await hybridSearch(ctx.db, ctx.embedder, {

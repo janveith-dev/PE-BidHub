@@ -20,6 +20,8 @@ export interface Config {
   /** Domains, die die Websuche nie liefern darf (Wettbewerber). */
   webBlockedDomains: string[];
   mlServiceUrl: string | undefined;
+  /** Kennung des Embedding-Modells, die zu jedem Chunk gespeichert wird. Zusammen mit EMBED_MODEL des ML-Dienstes ändern. */
+  mlEmbedId: string;
   elevenLabs: { apiKey: string | undefined; voiceId: string; modelId: string };
   embeddingDim: number;
   /** Absender in Deckblatt und Dokumenteigenschaften. */
@@ -53,6 +55,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     refusalFallback: env.LLM_REFUSAL_FALLBACK !== '0',
     webBlockedDomains: list(env.WEB_BLOCKED_DOMAINS),
     mlServiceUrl: env.ML_SERVICE_URL || undefined,
+    mlEmbedId: env.ML_EMBED_ID ?? 'ml-minilm-l12-v2',
     elevenLabs: {
       apiKey: env.ELEVENLABS_API_KEY || undefined,
       voiceId: env.ELEVENLABS_VOICE_ID ?? 'JBFqnCBsd6RMkjVDRZzb',

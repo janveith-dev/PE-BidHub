@@ -59,12 +59,14 @@ export class HashEmbedder implements Embedder {
   }
 }
 
-/** Embeddings über den ML-Dienst (mehrsprachiges E5-Modell, siehe services/ml). */
+/** Embeddings über den ML-Dienst (mehrsprachiges Satzmodell, siehe services/ml). */
 export class MlEmbedder implements Embedder {
   readonly dim = 384;
+  private servedModel: string | undefined;
+
   constructor(
     private readonly baseUrl: string,
-    readonly name = 'ml-e5-small',
+    readonly name = 'ml-minilm-l12-v2',
   ) {}
 
   async embed(texts: string[], kind: EmbedKind): Promise<number[][]> {
@@ -77,15 +79,25 @@ export class MlEmbedder implements Embedder {
         signal: AbortSignal.timeout(120_000),
       });
       if (!res.ok) throw new Error(`ML-Dienst /embed: HTTP ${res.status}`);
-      const body = (await res.json()) as { embeddings: number[][]; model?: string };
+      const body = (await res.json()) as { embeddings: number[][]; model?: string; dim?: number };
+      // Wechselt das Modell des Dienstes, wären neue und gespeicherte Vektoren nicht vergleichbar.
+      if (body.model) {
+        this.servedModel ??= body.model;
+        if (body.model !== this.servedModel) {
+          throw new Error(`Der ML-Dienst liefert jetzt das Modell ${body.model} statt ${this.servedModel}. Bitte neu einbetten (POST /api/admin/reindex) und ML_EMBED_ID anpassen.`);
+        }
+      }
+      if (body.dim !== undefined && body.dim !== this.dim) {
+        throw new Error(`Das Embedding-Modell liefert ${body.dim} statt ${this.dim} Dimensionen; die Datenbankspalte ist vector(${this.dim}).`);
+      }
       out.push(...body.embeddings);
     }
     return out;
   }
 }
 
-export function createEmbedder(config: Pick<Config, 'mlServiceUrl' | 'embeddingDim'>): Embedder {
-  return config.mlServiceUrl ? new MlEmbedder(config.mlServiceUrl) : new HashEmbedder(config.embeddingDim);
+export function createEmbedder(config: Pick<Config, 'mlServiceUrl' | 'embeddingDim' | 'mlEmbedId'>): Embedder {
+  return config.mlServiceUrl ? new MlEmbedder(config.mlServiceUrl, config.mlEmbedId) : new HashEmbedder(config.embeddingDim);
 }
 
 export const contentHash = (buffer: Buffer): string => createHash('sha256').update(buffer).digest('hex');
