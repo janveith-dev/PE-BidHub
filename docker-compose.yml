@@ -1,0 +1,78 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: bid
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bid_dev_only}
+      POSTGRES_DB: bid_hub
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # Ohne Healthcheck läuft die API beim Start in „connection refused": Postgres öffnet den Port, bevor es antwortet.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bid -d bid_hub']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Whisper (Spracherkennung), Embeddings und Texterkennung. Alles lokal, nichts davon verlässt das Haus.
+  ml:
+    build:
+      context: services/ml
+    environment:
+      # small: schnell (ca. 2 s je Frage auf 4 Kernen). large-v3-turbo: genauer (7,8 % statt 11 % Wortfehler
+      # in unseren Tests), dafür etwa viermal so langsam.
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+    volumes:
+      - ml-models:/models
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://bid:${POSTGRES_PASSWORD:-bid_dev_only}@db:5432/bid_hub
+      ML_SERVICE_URL: http://ml:8000
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-JBFqnCBsd6RMkjVDRZzb}
+      WEB_BLOCKED_DOMAINS: ${WEB_BLOCKED_DOMAINS:-}
+      COMPANY_NAME: ${COMPANY_NAME:-public edge GmbH}
+      # Frontend und API liegen hinter derselben Origin (nginx); CORS greift nur bei direktem Zugriff.
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    volumes:
+      - api-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+      ml:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  ml-models:
+  api-data:
