@@ -66,7 +66,8 @@ export interface SectionRow {
   updated_at: string;
 }
 
-export const optionsOf = (doc: Pick<BidDocumentRow, 'options'>): BidDocumentOptions => BidDocumentOptionsSchema.parse(doc.options ?? {});
+export const optionsOf = (doc: Pick<BidDocumentRow, 'options'>): BidDocumentOptions =>
+  BidDocumentOptionsSchema.parse(doc.options ?? {});
 
 // --- Aufträge ----------------------------------------------------------------------
 
@@ -91,7 +92,8 @@ export async function getBid(db: Db, id: string): Promise<BidRow> {
 }
 
 export async function deleteBid(db: Db, id: string): Promise<void> {
-  if (!(await db.one('DELETE FROM bids WHERE id = $1 RETURNING id', [id]))) throw notFound('Ausschreibung');
+  if (!(await db.one('DELETE FROM bids WHERE id = $1 RETURNING id', [id])))
+    throw notFound('Ausschreibung');
 }
 
 export async function listBidDocuments(db: Db, bidId: string) {
@@ -107,7 +109,13 @@ export async function listBidDocuments(db: Db, bidId: string) {
 export async function addBidFile(
   db: Db,
   bidId: string,
-  file: { filename: string; mime: string; sizeBytes: number; storagePath: string; contentText: string },
+  file: {
+    filename: string;
+    mime: string;
+    sizeBytes: number;
+    storagePath: string;
+    contentText: string;
+  },
 ): Promise<string> {
   return (await db.one<{ id: string }>(
     `INSERT INTO bid_files (bid_id, filename, mime, size_bytes, storage_path, content_text) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
@@ -119,12 +127,24 @@ export async function addBidFile(
 
 export async function createBidDocument(
   db: Db,
-  input: { bidId: string; title: string; specText: string; specFileId?: string | undefined; options?: Partial<BidDocumentOptions> | undefined },
+  input: {
+    bidId: string;
+    title: string;
+    specText: string;
+    specFileId?: string | undefined;
+    options?: Partial<BidDocumentOptions> | undefined;
+  },
 ): Promise<BidDocumentRow> {
   await getBid(db, input.bidId);
   return (await db.one<BidDocumentRow>(
     `INSERT INTO bid_documents (bid_id, title, spec_text, spec_file_id, options) VALUES ($1, $2, $3, $4, $5::jsonb) RETURNING *`,
-    [input.bidId, input.title, input.specText, input.specFileId ?? null, JSON.stringify(input.options ?? {})],
+    [
+      input.bidId,
+      input.title,
+      input.specText,
+      input.specFileId ?? null,
+      JSON.stringify(input.options ?? {}),
+    ],
   ))!;
 }
 
@@ -137,13 +157,24 @@ export async function getBidDocument(db: Db, id: string): Promise<BidDocumentRow
 export async function deleteBidDocument(db: Db, id: string): Promise<void> {
   const doc = await getBidDocument(db, id);
   if (['analyzing', 'writing', 'reviewing'].includes(doc.status)) {
-    throw new HttpError(409, 'Das Dokument wird gerade bearbeitet. Bitte warten, bis der Lauf beendet ist.');
+    throw new HttpError(
+      409,
+      'Das Dokument wird gerade bearbeitet. Bitte warten, bis der Lauf beendet ist.',
+    );
   }
   await db.query('DELETE FROM bid_documents WHERE id = $1', [id]);
 }
 
-export async function setStatus(db: Db, id: string, status: BidDocumentStatus, error: string | null = null): Promise<void> {
-  await db.query('UPDATE bid_documents SET status = $2, error = $3, updated_at = now() WHERE id = $1', [id, status, error]);
+export async function setStatus(
+  db: Db,
+  id: string,
+  status: BidDocumentStatus,
+  error: string | null = null,
+): Promise<void> {
+  await db.query(
+    'UPDATE bid_documents SET status = $2, error = $3, updated_at = now() WHERE id = $1',
+    [id, status, error],
+  );
 }
 
 /** Legt einen Statuswechsel atomar fest: schlägt fehl, wenn das Dokument nicht im erwarteten Zustand ist. */
@@ -160,13 +191,19 @@ export async function transition(
   );
   if (row) return row;
   const current = await getBidDocument(db, id);
-  throw new HttpError(409, `Dieser Schritt ist im Status „${current.status}" nicht möglich (erlaubt: ${from.join(', ')}).`);
+  throw new HttpError(
+    409,
+    `Dieser Schritt ist im Status „${current.status}" nicht möglich (erlaubt: ${from.join(', ')}).`,
+  );
 }
 
 // --- Kapitel -----------------------------------------------------------------------------
 
 export async function listSections(db: Db, bidDocumentId: string): Promise<SectionRow[]> {
-  return db.query<SectionRow>('SELECT * FROM bid_sections WHERE bid_document_id = $1 ORDER BY ordinal', [bidDocumentId]);
+  return db.query<SectionRow>(
+    'SELECT * FROM bid_sections WHERE bid_document_id = $1 ORDER BY ordinal',
+    [bidDocumentId],
+  );
 }
 
 export async function getSection(db: Db, id: string): Promise<SectionRow> {
@@ -176,26 +213,58 @@ export async function getSection(db: Db, id: string): Promise<SectionRow> {
 }
 
 /** Ersetzt alle Kapitel durch die Gliederung. Nur vor der Freigabe, solange noch kein Text existiert. */
-export async function replaceSections(db: Db, bidDocumentId: string, outline: SpecAnalysis['outline']): Promise<void> {
+export async function replaceSections(
+  db: Db,
+  bidDocumentId: string,
+  outline: SpecAnalysis['outline'],
+): Promise<void> {
   await db.tx(async (tx) => {
     await tx.query('DELETE FROM bid_sections WHERE bid_document_id = $1', [bidDocumentId]);
     for (const [i, s] of outline.entries()) {
       await tx.query(
         `INSERT INTO bid_sections (bid_document_id, ordinal, outline_id, number, title, level, purpose, requirement_ids, author_role, target_words, max_words)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-        [bidDocumentId, i, s.id, s.number, s.title, s.level, s.purpose, s.requirementIds, s.authorRole, s.targetWords ?? null, s.maxWords ?? null],
+        [
+          bidDocumentId,
+          i,
+          s.id,
+          s.number,
+          s.title,
+          s.level,
+          s.purpose,
+          s.requirementIds,
+          s.authorRole,
+          s.targetWords ?? null,
+          s.maxWords ?? null,
+        ],
       );
     }
   });
 }
 
-export async function setSectionStatus(db: Db, id: string, status: SectionStatus, notes?: string): Promise<void> {
-  if (notes === undefined) await db.query('UPDATE bid_sections SET status = $2, updated_at = now() WHERE id = $1', [id, status]);
-  else await db.query('UPDATE bid_sections SET status = $2, notes = $3, updated_at = now() WHERE id = $1', [id, status, notes]);
+export async function setSectionStatus(
+  db: Db,
+  id: string,
+  status: SectionStatus,
+  notes?: string,
+): Promise<void> {
+  if (notes === undefined)
+    await db.query('UPDATE bid_sections SET status = $2, updated_at = now() WHERE id = $1', [
+      id,
+      status,
+    ]);
+  else
+    await db.query(
+      'UPDATE bid_sections SET status = $2, notes = $3, updated_at = now() WHERE id = $1',
+      [id, status, notes],
+    );
 }
 
 export async function saveSectionFacts(db: Db, id: string, facts: Fact[]): Promise<void> {
-  await db.query('UPDATE bid_sections SET facts = $2::jsonb, updated_at = now() WHERE id = $1', [id, JSON.stringify(facts)]);
+  await db.query('UPDATE bid_sections SET facts = $2::jsonb, updated_at = now() WHERE id = $1', [
+    id,
+    JSON.stringify(facts),
+  ]);
 }
 
 /** Schreibt eine neue Fassung des Kapitels und legt die vorherige samt ihrem Autor in die Versionshistorie. */
@@ -207,23 +276,40 @@ export async function saveSectionContent(
   extra: { status?: SectionStatus; notes?: string } = {},
 ): Promise<SectionRow> {
   return db.tx(async (tx) => {
-    const current = await tx.one<SectionRow>('SELECT * FROM bid_sections WHERE id = $1 FOR UPDATE', [id]);
+    const current = await tx.one<SectionRow>(
+      'SELECT * FROM bid_sections WHERE id = $1 FOR UPDATE',
+      [id],
+    );
     if (!current) throw notFound('Kapitel');
     if (current.content.trim()) {
-      await tx.query('INSERT INTO bid_section_versions (section_id, version, content, author) VALUES ($1, $2, $3, $4)', [
-        id, current.version, current.content, current.last_author || 'unbekannt',
-      ]);
+      await tx.query(
+        'INSERT INTO bid_section_versions (section_id, version, content, author) VALUES ($1, $2, $3, $4)',
+        [id, current.version, current.content, current.last_author || 'unbekannt'],
+      );
     }
     return (await tx.one<SectionRow>(
       `UPDATE bid_sections SET content = $2, version = $3, last_author = $4, status = $5, notes = $6, updated_at = now()
        WHERE id = $1 RETURNING *`,
-      [id, content, current.version + 1, author, extra.status ?? current.status, extra.notes ?? current.notes],
+      [
+        id,
+        content,
+        current.version + 1,
+        author,
+        extra.status ?? current.status,
+        extra.notes ?? current.notes,
+      ],
     ))!;
   });
 }
 
 export async function listSectionVersions(db: Db, sectionId: string) {
-  return db.query<{ id: string; version: number; content: string; author: string; created_at: string }>(
+  return db.query<{
+    id: string;
+    version: number;
+    content: string;
+    author: string;
+    created_at: string;
+  }>(
     'SELECT id, version, content, author, created_at FROM bid_section_versions WHERE section_id = $1 ORDER BY version DESC',
     [sectionId],
   );
@@ -242,12 +328,27 @@ export interface EventInput {
 export async function logEvent(db: Db, bidDocumentId: string, e: EventInput): Promise<void> {
   await db.query(
     `INSERT INTO agent_events (bid_document_id, section_id, agent, kind, message, data) VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
-    [bidDocumentId, e.sectionId ?? null, e.agent, e.kind, e.message.slice(0, 2000), e.data === undefined ? null : JSON.stringify(e.data)],
+    [
+      bidDocumentId,
+      e.sectionId ?? null,
+      e.agent,
+      e.kind,
+      e.message.slice(0, 2000),
+      e.data === undefined ? null : JSON.stringify(e.data),
+    ],
   );
 }
 
 export async function listEvents(db: Db, bidDocumentId: string, afterId = 0) {
-  return db.query<{ id: number; section_id: string | null; agent: string; kind: string; message: string; data: unknown; created_at: string }>(
+  return db.query<{
+    id: number;
+    section_id: string | null;
+    agent: string;
+    kind: string;
+    message: string;
+    data: unknown;
+    created_at: string;
+  }>(
     'SELECT id, section_id, agent, kind, message, data, created_at FROM agent_events WHERE bid_document_id = $1 AND id > $2 ORDER BY id LIMIT 500',
     [bidDocumentId, afterId],
   );
@@ -262,7 +363,11 @@ export async function usageTotals(db: Db, bidDocumentId: string) {
      FROM agent_events WHERE bid_document_id = $1 AND kind = 'result'`,
     [bidDocumentId],
   );
-  return { inputTokens: row?.input ?? 0, outputTokens: row?.output ?? 0, cacheReadTokens: row?.cache_read ?? 0 };
+  return {
+    inputTokens: row?.input ?? 0,
+    outputTokens: row?.output ?? 0,
+    cacheReadTokens: row?.cache_read ?? 0,
+  };
 }
 
 /** Beim Start: Läufe, die ein Neustart unterbrochen hat, sind nicht mehr „in Arbeit". */
@@ -274,6 +379,8 @@ export async function recoverInterruptedJobs(db: Db): Promise<number> {
        updated_at = now()
      WHERE status IN ('analyzing', 'writing', 'reviewing') RETURNING id, status`,
   );
-  await db.query(`UPDATE bid_sections SET status = 'pending' WHERE status IN ('researching', 'writing')`);
+  await db.query(
+    `UPDATE bid_sections SET status = 'pending' WHERE status IN ('researching', 'writing')`,
+  );
   return stuck.length;
 }

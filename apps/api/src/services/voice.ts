@@ -4,7 +4,11 @@ import type { OcrProvider } from './extract/index.js';
 
 export interface SpeechToText {
   readonly available: boolean;
-  transcribe(audio: Buffer, mime: string, language?: string): Promise<{ text: string; language: string | null }>;
+  transcribe(
+    audio: Buffer,
+    mime: string,
+    language?: string,
+  ): Promise<{ text: string; language: string | null }>;
 }
 
 export interface TextToSpeech {
@@ -26,17 +30,27 @@ export class MlSpeechToText implements SpeechToText {
     return Boolean(this.baseUrl);
   }
 
-  async transcribe(audio: Buffer, mime: string, language?: string): Promise<{ text: string; language: string | null }> {
-    if (!this.baseUrl) throw new HttpError(503, 'Spracherkennung ist nicht eingerichtet: ML_SERVICE_URL fehlt.');
+  async transcribe(
+    audio: Buffer,
+    mime: string,
+    language?: string,
+  ): Promise<{ text: string; language: string | null }> {
+    if (!this.baseUrl)
+      throw new HttpError(503, 'Spracherkennung ist nicht eingerichtet: ML_SERVICE_URL fehlt.');
     const form = new FormData();
-    form.append('file', new Blob([new Uint8Array(audio)], { type: mime || 'audio/webm' }), 'aufnahme');
+    form.append(
+      'file',
+      new Blob([new Uint8Array(audio)], { type: mime || 'audio/webm' }),
+      'aufnahme',
+    );
     if (language) form.append('language', language);
     const res = await this.fetchImpl(`${this.baseUrl}/transcribe`, {
       method: 'POST',
       body: form,
       signal: AbortSignal.timeout(120_000),
     });
-    if (!res.ok) throw new HttpError(502, `Spracherkennung fehlgeschlagen (ML-Dienst: HTTP ${res.status}).`);
+    if (!res.ok)
+      throw new HttpError(502, `Spracherkennung fehlgeschlagen (ML-Dienst: HTTP ${res.status}).`);
     const body = (await res.json()) as { text: string; language?: string };
     return { text: body.text.trim(), language: body.language ?? null };
   }
@@ -53,11 +67,16 @@ export class ElevenLabsTextToSpeech implements TextToSpeech {
   }
 
   async speak(text: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-    if (!this.options.apiKey) throw new HttpError(503, 'Sprachausgabe ist nicht eingerichtet: ELEVENLABS_API_KEY fehlt.');
+    if (!this.options.apiKey)
+      throw new HttpError(503, 'Sprachausgabe ist nicht eingerichtet: ELEVENLABS_API_KEY fehlt.');
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(this.options.voiceId)}/stream?output_format=mp3_44100_128`;
     const res = await this.fetchImpl(url, {
       method: 'POST',
-      headers: { 'xi-api-key': this.options.apiKey, 'content-type': 'application/json', accept: 'audio/mpeg' },
+      headers: {
+        'xi-api-key': this.options.apiKey,
+        'content-type': 'application/json',
+        accept: 'audio/mpeg',
+      },
       body: JSON.stringify({ text, model_id: this.options.modelId }),
       ...(signal ? { signal } : {}),
     });
@@ -83,7 +102,8 @@ export class MlOcr implements OcrProvider {
       body: form,
       signal: AbortSignal.timeout(600_000),
     });
-    if (!res.ok) throw new HttpError(502, `Texterkennung fehlgeschlagen (ML-Dienst: HTTP ${res.status}).`);
+    if (!res.ok)
+      throw new HttpError(502, `Texterkennung fehlgeschlagen (ML-Dienst: HTTP ${res.status}).`);
     return ((await res.json()) as { pages: string[] }).pages;
   }
 }

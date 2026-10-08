@@ -40,10 +40,23 @@ export function describeError(error: unknown): { status: number; message: string
   if (error instanceof LlmOutputError) return { status: 502, message: error.message };
   if (error instanceof Anthropic.APIError) {
     const status = error.status ?? 502;
-    if (status === 401 || status === 403) return { status: 502, message: 'Die Anthropic-API hat den API-Schlüssel abgelehnt.' };
-    if (status === 429) return { status: 429, message: 'Das Anfragelimit der Anthropic-API ist erreicht. Bitte kurz warten und erneut versuchen.' };
-    if (status >= 500) return { status: 503, message: 'Die Anthropic-API ist gerade überlastet oder nicht erreichbar.' };
-    return { status: 502, message: `Die Anthropic-API hat die Anfrage abgelehnt: ${error.message}` };
+    if (status === 401 || status === 403)
+      return { status: 502, message: 'Die Anthropic-API hat den API-Schlüssel abgelehnt.' };
+    if (status === 429)
+      return {
+        status: 429,
+        message:
+          'Das Anfragelimit der Anthropic-API ist erreicht. Bitte kurz warten und erneut versuchen.',
+      };
+    if (status >= 500)
+      return {
+        status: 503,
+        message: 'Die Anthropic-API ist gerade überlastet oder nicht erreichbar.',
+      };
+    return {
+      status: 502,
+      message: `Die Anthropic-API hat die Anfrage abgelehnt: ${error.message}`,
+    };
   }
   const e = error as FastifyError & { status?: number };
   const status = e.statusCode ?? (typeof e.status === 'number' ? e.status : 500);
@@ -68,7 +81,10 @@ export async function buildServer(ctx: AppContext) {
             transport:
               process.env.NODE_ENV === 'production'
                 ? undefined
-                : { target: 'pino-pretty', options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' } },
+                : {
+                    target: 'pino-pretty',
+                    options: { translateTime: 'HH:MM:ss', ignore: 'pid,hostname' },
+                  },
           },
     bodyLimit: 2 * 1024 * 1024,
   });

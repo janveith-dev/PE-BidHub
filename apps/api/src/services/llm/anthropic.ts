@@ -24,7 +24,10 @@ const DEFAULT_MAX_TURNS = 12;
 const supportsFallback = (model: string): boolean => /^claude-(opus|sonnet|fable)-/.test(model);
 
 export function toJsonSchema(schema: z.ZodType): Record<string, unknown> {
-  const { $schema: _ignored, ...rest } = z.toJSONSchema(schema, { io: 'input' }) as Record<string, unknown>;
+  const { $schema: _ignored, ...rest } = z.toJSONSchema(schema, { io: 'input' }) as Record<
+    string,
+    unknown
+  >;
   return rest;
 }
 
@@ -56,7 +59,10 @@ export class AnthropicLlm implements Llm {
 
   async run<T = unknown>(req: AgentRequest<T>): Promise<AgentResult<T>> {
     const client = this.getClient();
-    const messages: MessageParam[] = req.messages.map((m) => ({ role: m.role, content: m.content }));
+    const messages: MessageParam[] = req.messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
     const tools = (req.tools ?? []) as AgentTool<unknown>[];
     const toolByName = new Map(tools.map((t) => [t.name, t]));
 
@@ -74,7 +80,9 @@ export class AnthropicLlm implements Llm {
               type: 'web_search_20260209' as const,
               name: 'web_search' as const,
               max_uses: req.webSearch.maxUses,
-              ...(req.webSearch.blockedDomains?.length ? { blocked_domains: req.webSearch.blockedDomains } : {}),
+              ...(req.webSearch.blockedDomains?.length
+                ? { blocked_domains: req.webSearch.blockedDomains }
+                : {}),
             },
           ]
         : []),
@@ -118,7 +126,8 @@ export class AnthropicLlm implements Llm {
       usage.cacheWriteTokens += message.usage.cache_creation_input_tokens ?? 0;
 
       for (const block of message.content) {
-        if (block.type === 'fallback') req.onEvent?.({ type: 'fallback', from: block.from.model, to: block.to.model });
+        if (block.type === 'fallback')
+          req.onEvent?.({ type: 'fallback', from: block.from.model, to: block.to.model });
         if (block.type === 'server_tool_use' && block.name === 'web_search') {
           const query = (block.input as { query?: string }).query;
           if (query) req.onEvent?.({ type: 'web_search', query });
@@ -132,7 +141,10 @@ export class AnthropicLlm implements Llm {
 
       // Eine Ablehnung kann einen Werkzeugaufruf mitten in der Eingabe abschneiden — niemals ausführen.
       if (message.stop_reason === 'refusal') {
-        throw new LlmRefusalError(message.stop_details?.category ?? null, message.stop_details?.explanation ?? null);
+        throw new LlmRefusalError(
+          message.stop_details?.category ?? null,
+          message.stop_details?.explanation ?? null,
+        );
       }
 
       messages.push({ role: 'assistant', content: message.content as MessageParam['content'] });
@@ -141,11 +153,17 @@ export class AnthropicLlm implements Llm {
       // Serverseitige Werkzeuge (Websuche) können eine Runde unterbrechen; unverändert fortsetzen.
       if (message.stop_reason === 'pause_turn') continue;
 
-      const toolUses = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use');
+      const toolUses = message.content.filter(
+        (b): b is Anthropic.Beta.BetaToolUseBlock => b.type === 'tool_use',
+      );
 
       if (message.stop_reason === 'max_tokens') {
-        if (toolUses.length) throw new LlmOutputError('Die Antwort wurde mitten in einem Werkzeugaufruf abgeschnitten (max_tokens).');
-        if (req.output) throw new LlmOutputError('Die strukturierte Antwort wurde abgeschnitten (max_tokens).');
+        if (toolUses.length)
+          throw new LlmOutputError(
+            'Die Antwort wurde mitten in einem Werkzeugaufruf abgeschnitten (max_tokens).',
+          );
+        if (req.output)
+          throw new LlmOutputError('Die strukturierte Antwort wurde abgeschnitten (max_tokens).');
         break;
       }
       if (!toolUses.length) break;
@@ -156,7 +174,9 @@ export class AnthropicLlm implements Llm {
 
     if (!lastMessage) throw new LlmOutputError('Das Modell hat nicht geantwortet.');
     if (lastMessage.stop_reason === 'tool_use') {
-      throw new LlmOutputError(`Die Werkzeugschleife wurde nach ${maxTurns} Durchläufen abgebrochen.`);
+      throw new LlmOutputError(
+        `Die Werkzeugschleife wurde nach ${maxTurns} Durchläufen abgebrochen.`,
+      );
     }
 
     let parsed: T | undefined;
@@ -165,7 +185,9 @@ export class AnthropicLlm implements Llm {
       try {
         parsed = req.output.parse(JSON.parse(finalText)) as T;
       } catch (error) {
-        throw new LlmOutputError(`Die Antwort entspricht nicht dem erwarteten Format: ${(error as Error).message}`);
+        throw new LlmOutputError(
+          `Die Antwort entspricht nicht dem erwarteten Format: ${(error as Error).message}`,
+        );
       }
     }
 
@@ -186,7 +208,12 @@ export class AnthropicLlm implements Llm {
     req: AgentRequest<unknown>,
   ): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
     const fail = (message: string): Anthropic.Beta.BetaToolResultBlockParam => {
-      req.onEvent?.({ type: 'tool_result', name: use.name, ok: false, preview: message.slice(0, 200) });
+      req.onEvent?.({
+        type: 'tool_result',
+        name: use.name,
+        ok: false,
+        preview: message.slice(0, 200),
+      });
       return { type: 'tool_result', tool_use_id: use.id, is_error: true, content: message };
     };
     const tool = tools.get(use.name);
@@ -199,7 +226,12 @@ export class AnthropicLlm implements Llm {
     req.onEvent?.({ type: 'tool_call', name: use.name, input: parsed.data });
     try {
       const content = await tool.run(parsed.data);
-      req.onEvent?.({ type: 'tool_result', name: use.name, ok: true, preview: content.slice(0, 200) });
+      req.onEvent?.({
+        type: 'tool_result',
+        name: use.name,
+        ok: true,
+        preview: content.slice(0, 200),
+      });
       return { type: 'tool_result', tool_use_id: use.id, content };
     } catch (error) {
       return fail(error instanceof Error ? error.message : String(error));

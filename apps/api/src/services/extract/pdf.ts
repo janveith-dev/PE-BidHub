@@ -1,16 +1,21 @@
 import { extractText, getDocumentProxy } from 'unpdf';
+import { stripNul } from './text.js';
 import type { ExtractContext, Extracted, Section } from './types.js';
 
 /** Unter dieser Zeichenzahl pro Seite gilt eine PDF-Seite als eingescannt. */
 const SCANNED_CHARS_PER_PAGE = 40;
 
-export async function extractPdf(buffer: Buffer, filename: string, ctx: ExtractContext): Promise<Extracted> {
+export async function extractPdf(
+  buffer: Buffer,
+  filename: string,
+  ctx: ExtractContext,
+): Promise<Extracted> {
   const pdf = await getDocumentProxy(new Uint8Array(buffer));
   const { text: pages } = await extractText(pdf, { mergePages: false });
   const sections: Section[] = pages.map((text, i) => ({
     heading: null,
     page: i + 1,
-    text: text.replace(/[ \t]+\n/g, '\n').replace(/\u0000/g, ''),
+    text: stripNul(text.replace(/[ \t]+\n/g, '\n')),
   }));
 
   const chars = sections.reduce((n, s) => n + s.text.trim().length, 0);

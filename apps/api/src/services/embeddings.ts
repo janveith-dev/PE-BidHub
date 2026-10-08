@@ -26,7 +26,9 @@ function fnv1a(s: string): number {
 }
 
 const STOPWORDS = new Set(
-  'der die das und oder nicht mit für ist sind wird werden eine einer einen von zu im in auf den dem des als auch the and of to is are with for that this on be as by from or an a it at wir sie ihr'.split(' '),
+  'der die das und oder nicht mit für ist sind wird werden eine einer einen von zu im in auf den dem des als auch the and of to is are with for that this on be as by from or an a it at wir sie ihr'.split(
+    ' ',
+  ),
 );
 
 /**
@@ -49,11 +51,14 @@ export class HashEmbedder implements Embedder {
       const h = fnv1a(feature);
       v[h % this.dim]! += (h & 0x80000000 ? -1 : 1) * weight;
     };
-    const words = (text.toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}_-]*/gu) ?? []).filter((w) => !STOPWORDS.has(w));
+    const words = (text.toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}_-]*/gu) ?? []).filter(
+      (w) => !STOPWORDS.has(w),
+    );
     words.forEach((w, i) => {
       add(`w:${w}`, 1);
       if (i > 0) add(`b:${words[i - 1]}_${w}`, 0.5);
-      if (w.length >= 5) for (let j = 0; j <= w.length - 3; j++) add(`t:${w.slice(j, j + 3)}`, 0.25);
+      if (w.length >= 5)
+        for (let j = 0; j <= w.length - 3; j++) add(`t:${w.slice(j, j + 3)}`, 0.25);
     });
     return normalize(v);
   }
@@ -84,11 +89,15 @@ export class MlEmbedder implements Embedder {
       if (body.model) {
         this.servedModel ??= body.model;
         if (body.model !== this.servedModel) {
-          throw new Error(`Der ML-Dienst liefert jetzt das Modell ${body.model} statt ${this.servedModel}. Bitte neu einbetten (POST /api/admin/reindex) und ML_EMBED_ID anpassen.`);
+          throw new Error(
+            `Der ML-Dienst liefert jetzt das Modell ${body.model} statt ${this.servedModel}. Bitte neu einbetten (POST /api/admin/reindex) und ML_EMBED_ID anpassen.`,
+          );
         }
       }
       if (body.dim !== undefined && body.dim !== this.dim) {
-        throw new Error(`Das Embedding-Modell liefert ${body.dim} statt ${this.dim} Dimensionen; die Datenbankspalte ist vector(${this.dim}).`);
+        throw new Error(
+          `Das Embedding-Modell liefert ${body.dim} statt ${this.dim} Dimensionen; die Datenbankspalte ist vector(${this.dim}).`,
+        );
       }
       out.push(...body.embeddings);
     }
@@ -96,8 +105,13 @@ export class MlEmbedder implements Embedder {
   }
 }
 
-export function createEmbedder(config: Pick<Config, 'mlServiceUrl' | 'embeddingDim' | 'mlEmbedId'>): Embedder {
-  return config.mlServiceUrl ? new MlEmbedder(config.mlServiceUrl, config.mlEmbedId) : new HashEmbedder(config.embeddingDim);
+export function createEmbedder(
+  config: Pick<Config, 'mlServiceUrl' | 'embeddingDim' | 'mlEmbedId'>,
+): Embedder {
+  return config.mlServiceUrl
+    ? new MlEmbedder(config.mlServiceUrl, config.mlEmbedId)
+    : new HashEmbedder(config.embeddingDim);
 }
 
-export const contentHash = (buffer: Buffer): string => createHash('sha256').update(buffer).digest('hex');
+export const contentHash = (buffer: Buffer): string =>
+  createHash('sha256').update(buffer).digest('hex');

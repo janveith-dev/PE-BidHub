@@ -56,7 +56,10 @@ function toBlocks(section: Section): Block[] {
   flush();
 
   // Leere Platzhalter im Pfad (übersprungene Ebenen) entfernen.
-  return blocks.map((b) => ({ ...b, heading: b.heading?.replace(/( › )+/g, ' › ').replace(/^ › | › $/g, '') ?? null }));
+  return blocks.map((b) => ({
+    ...b,
+    heading: b.heading?.replace(/( › )+/g, ' › ').replace(/^ › | › $/g, '') ?? null,
+  }));
 }
 
 /** Teilt einen zu langen Absatz an Zeilenenden, dann an Satzenden, zuletzt hart. */
@@ -87,7 +90,10 @@ function splitLong(text: string, max: number): string[] {
   return parts.filter(Boolean);
 }
 
-export function chunkSections(sections: Section[], options: ChunkOptions = DEFAULT_CHUNK_OPTIONS): Chunk[] {
+export function chunkSections(
+  sections: Section[],
+  options: ChunkOptions = DEFAULT_CHUNK_OPTIONS,
+): Chunk[] {
   const chunks: Chunk[] = [];
 
   for (const section of sections) {

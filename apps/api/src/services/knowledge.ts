@@ -76,11 +76,19 @@ export function toSummary(row: DocumentRow): DocumentSummary {
 
 /** Dateiname ohne Pfadanteile und Sonderzeichen — er landet im Dateisystem. */
 export function safeFilename(name: string): string {
-  const base = path.basename(name.replace(/\\/g, '/')).replace(/[^\p{L}\p{N}._ -]/gu, '_').trim();
+  const base = path
+    .basename(name.replace(/\\/g, '/'))
+    .replace(/[^\p{L}\p{N}._ -]/gu, '_')
+    .trim();
   return base && base !== '.' && base !== '..' ? base.slice(0, 180) : 'datei';
 }
 
-export async function storeFile(dataDir: string, sha256: string, filename: string, buffer: Buffer): Promise<string> {
+export async function storeFile(
+  dataDir: string,
+  sha256: string,
+  filename: string,
+  buffer: Buffer,
+): Promise<string> {
   const dir = path.join(dataDir, 'uploads', sha256.slice(0, 2), sha256);
   await mkdir(dir, { recursive: true });
   const target = path.join(dir, safeFilename(filename));
@@ -94,7 +102,10 @@ export interface IngestResult {
   warnings: string[];
 }
 
-export async function ingestDocument(deps: KnowledgeDeps, input: UploadInput): Promise<IngestResult> {
+export async function ingestDocument(
+  deps: KnowledgeDeps,
+  input: UploadInput,
+): Promise<IngestResult> {
   const { db, embedder } = deps;
   const sha256 = contentHash(input.buffer);
 
@@ -105,7 +116,11 @@ export async function ingestDocument(deps: KnowledgeDeps, input: UploadInput): P
   );
   if (existing && !input.meta.replacesDocumentId) {
     const row = await db.one<DocumentRow>(`${SELECT_SUMMARY} WHERE d.id = $1`, [existing.id]);
-    return { document: toSummary(row!), duplicate: true, warnings: ['Diese Datei ist bereits in der Wissensbasis.'] };
+    return {
+      document: toSummary(row!),
+      duplicate: true,
+      warnings: ['Diese Datei ist bereits in der Wissensbasis.'],
+    };
   }
 
   const extracted = await extractText(input.buffer, input.filename, input.mime, { ocr: deps.ocr });
@@ -125,12 +140,16 @@ export async function ingestDocument(deps: KnowledgeDeps, input: UploadInput): P
     let version = 1;
 
     if (input.meta.replacesDocumentId) {
-      const old = await tx.one<{ family_id: string }>('SELECT family_id FROM documents WHERE id = $1', [
-        input.meta.replacesDocumentId,
-      ]);
+      const old = await tx.one<{ family_id: string }>(
+        'SELECT family_id FROM documents WHERE id = $1',
+        [input.meta.replacesDocumentId],
+      );
       if (!old) throw notFound('Das zu ersetzende Dokument');
       familyId = old.family_id;
-      const max = await tx.one<{ v: number }>('SELECT max(version) AS v FROM documents WHERE family_id = $1', [familyId]);
+      const max = await tx.one<{ v: number }>(
+        'SELECT max(version) AS v FROM documents WHERE family_id = $1',
+        [familyId],
+      );
       version = (max?.v ?? 0) + 1;
       await tx.query('UPDATE documents SET is_current = false WHERE family_id = $1', [familyId]);
     } else {
@@ -142,10 +161,23 @@ export async function ingestDocument(deps: KnowledgeDeps, input: UploadInput): P
                               filename, mime, size_bytes, sha256, storage_path, content_text, extraction_method, uploaded_by_role)
        VALUES ($1, $2, true, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
       [
-        familyId, version, input.meta.title, input.meta.category, input.meta.vendor ?? null, input.meta.tags,
-        language, input.meta.validFrom ?? null, input.meta.validUntil ?? null,
-        safeFilename(input.filename), input.mime, input.buffer.length, sha256, storagePath, contentText,
-        extracted.method, input.role ?? null,
+        familyId,
+        version,
+        input.meta.title,
+        input.meta.category,
+        input.meta.vendor ?? null,
+        input.meta.tags,
+        language,
+        input.meta.validFrom ?? null,
+        input.meta.validUntil ?? null,
+        safeFilename(input.filename),
+        input.mime,
+        input.buffer.length,
+        sha256,
+        storagePath,
+        contentText,
+        extracted.method,
+        input.role ?? null,
       ],
     );
 
@@ -153,7 +185,15 @@ export async function ingestDocument(deps: KnowledgeDeps, input: UploadInput): P
       await tx.query(
         `INSERT INTO chunks (document_id, ordinal, heading, page, content, embedding_model, embedding)
          VALUES ($1, $2, $3, $4, $5, $6, $7::vector)`,
-        [doc!.id, i, chunk.heading, chunk.page, chunk.content, embedder.name, toVectorLiteral(vectors[i]!)],
+        [
+          doc!.id,
+          i,
+          chunk.heading,
+          chunk.page,
+          chunk.content,
+          embedder.name,
+          toVectorLiteral(vectors[i]!),
+        ],
       );
     }
     return doc!.id;
@@ -179,7 +219,9 @@ export async function listDocuments(db: Db, filters: ListFilters = {}): Promise<
   if (filters.vendor) where.push(`d.vendor ILIKE $${params.push(filters.vendor)}`);
   if (filters.q) {
     const p = params.push(`%${filters.q.replace(/[%_\\]/g, '\\$&')}%`);
-    where.push(`(d.title ILIKE $${p} OR d.filename ILIKE $${p} OR d.vendor ILIKE $${p} OR array_to_string(d.tags, ' ') ILIKE $${p})`);
+    where.push(
+      `(d.title ILIKE $${p} OR d.filename ILIKE $${p} OR d.vendor ILIKE $${p} OR array_to_string(d.tags, ' ') ILIKE $${p})`,
+    );
   }
   const rows = await db.query<DocumentRow>(
     `${SELECT_SUMMARY} ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY d.created_at DESC LIMIT 500`,
@@ -189,22 +231,35 @@ export async function listDocuments(db: Db, filters: ListFilters = {}): Promise<
   return filters.validity ? docs.filter((d) => d.validity === filters.validity) : docs;
 }
 
-export async function getDocument(db: Db, id: string): Promise<{ document: DocumentSummary; versions: DocumentSummary[] }> {
+export async function getDocument(
+  db: Db,
+  id: string,
+): Promise<{ document: DocumentSummary; versions: DocumentSummary[] }> {
   const row = await db.one<DocumentRow>(`${SELECT_SUMMARY} WHERE d.id = $1`, [id]);
   if (!row) throw notFound('Dokument');
-  const versions = await db.query<DocumentRow>(`${SELECT_SUMMARY} WHERE d.family_id = $1 ORDER BY d.version DESC`, [
-    row.family_id,
-  ]);
+  const versions = await db.query<DocumentRow>(
+    `${SELECT_SUMMARY} WHERE d.family_id = $1 ORDER BY d.version DESC`,
+    [row.family_id],
+  );
   return { document: toSummary(row), versions: versions.map(toSummary) };
 }
 
-export async function getDocumentText(db: Db, id: string): Promise<{ title: string; text: string }> {
-  const row = await db.one<{ title: string; content_text: string }>('SELECT title, content_text FROM documents WHERE id = $1', [id]);
+export async function getDocumentText(
+  db: Db,
+  id: string,
+): Promise<{ title: string; text: string }> {
+  const row = await db.one<{ title: string; content_text: string }>(
+    'SELECT title, content_text FROM documents WHERE id = $1',
+    [id],
+  );
   if (!row) throw notFound('Dokument');
   return { title: row.title, text: row.content_text };
 }
 
-export async function getDocumentFile(db: Db, id: string): Promise<{ path: string; filename: string; mime: string }> {
+export async function getDocumentFile(
+  db: Db,
+  id: string,
+): Promise<{ path: string; filename: string; mime: string }> {
   const row = await db.one<{ storage_path: string; filename: string; mime: string }>(
     'SELECT storage_path, filename, mime FROM documents WHERE id = $1',
     [id],
@@ -222,10 +277,15 @@ export interface MetaPatch {
   validUntil?: string | null | undefined;
 }
 
-export async function updateDocumentMeta(db: Db, id: string, patch: MetaPatch): Promise<DocumentSummary> {
+export async function updateDocumentMeta(
+  db: Db,
+  id: string,
+  patch: MetaPatch,
+): Promise<DocumentSummary> {
   const sets: string[] = [];
   const params: unknown[] = [];
-  const set = (col: string, value: unknown): void => void sets.push(`${col} = $${params.push(value)}`);
+  const set = (col: string, value: unknown): void =>
+    void sets.push(`${col} = $${params.push(value)}`);
   if (patch.title !== undefined) set('title', patch.title);
   if (patch.category !== undefined) set('category', patch.category);
   if (patch.vendor !== undefined) set('vendor', patch.vendor);
@@ -234,7 +294,10 @@ export async function updateDocumentMeta(db: Db, id: string, patch: MetaPatch): 
   if (patch.validUntil !== undefined) set('valid_until', patch.validUntil);
   if (!sets.length) throw new HttpError(400, 'Keine Änderungen angegeben');
   params.push(id);
-  const updated = await db.one<{ id: string }>(`UPDATE documents SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING id`, params);
+  const updated = await db.one<{ id: string }>(
+    `UPDATE documents SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING id`,
+    params,
+  );
   if (!updated) throw notFound('Dokument');
   return (await getDocument(db, id)).document;
 }
@@ -256,12 +319,16 @@ export async function deleteDocument(db: Db, id: string): Promise<void> {
       );
     }
   });
-  const stillUsed = await db.one('SELECT 1 FROM documents WHERE storage_path = $1 LIMIT 1', [doc.storage_path]);
+  const stillUsed = await db.one('SELECT 1 FROM documents WHERE storage_path = $1 LIMIT 1', [
+    doc.storage_path,
+  ]);
   if (!stillUsed) await rm(path.dirname(doc.storage_path), { recursive: true, force: true });
 }
 
 /** Bettet alle Chunks neu ein, deren Vektor aus einem anderen Modell stammt (z. B. nach Zuschalten des ML-Dienstes). */
-export async function reindex(deps: Pick<KnowledgeDeps, 'db' | 'embedder'>): Promise<{ reindexed: number }> {
+export async function reindex(
+  deps: Pick<KnowledgeDeps, 'db' | 'embedder'>,
+): Promise<{ reindexed: number }> {
   const { db, embedder } = deps;
   const rows = await db.query<{ id: string; heading: string | null; content: string }>(
     'SELECT id, heading, content FROM chunks WHERE embedding_model IS DISTINCT FROM $1 ORDER BY document_id, ordinal',
@@ -269,12 +336,16 @@ export async function reindex(deps: Pick<KnowledgeDeps, 'db' | 'embedder'>): Pro
   );
   for (let i = 0; i < rows.length; i += 64) {
     const batch = rows.slice(i, i + 64);
-    const vectors = await embedder.embed(batch.map((r) => (r.heading ? `${r.heading}\n${r.content}` : r.content)), 'passage');
+    const vectors = await embedder.embed(
+      batch.map((r) => (r.heading ? `${r.heading}\n${r.content}` : r.content)),
+      'passage',
+    );
     await db.tx(async (tx) => {
       for (const [j, row] of batch.entries()) {
-        await tx.query('UPDATE chunks SET embedding = $1::vector, embedding_model = $2 WHERE id = $3', [
-          toVectorLiteral(vectors[j]!), embedder.name, row.id,
-        ]);
+        await tx.query(
+          'UPDATE chunks SET embedding = $1::vector, embedding_model = $2 WHERE id = $3',
+          [toVectorLiteral(vectors[j]!), embedder.name, row.id],
+        );
       }
     });
   }

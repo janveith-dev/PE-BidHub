@@ -7,7 +7,9 @@ const RRF_K = 60;
 const MAX_CHUNKS_PER_DOCUMENT = 3;
 
 const STOP = new Set(
-  'der die das und oder nicht mit für ist sind wird werden eine einer einen von zu im in auf den dem des als auch wie was welche welcher welches gibt es wir ihr sie ein the and of to is are with for that this on be as by from or an a what which how do does'.split(' '),
+  'der die das und oder nicht mit für ist sind wird werden eine einer einen von zu im in auf den dem des als auch wie was welche welcher welches gibt es wir ihr sie ein the and of to is are with for that this on be as by from or an a what which how do does'.split(
+    ' ',
+  ),
 );
 
 /**
@@ -25,7 +27,8 @@ export function buildTsQuery(query: string): string | null {
 
 function filterSql(req: SearchRequest, params: unknown[]): string {
   const parts = ['d.is_current = true'];
-  if (req.categories?.length) parts.push(`d.category = ANY($${params.push(req.categories)}::text[])`);
+  if (req.categories?.length)
+    parts.push(`d.category = ANY($${params.push(req.categories)}::text[])`);
   if (req.vendor) parts.push(`d.vendor ILIKE $${params.push(req.vendor)}`);
   if (req.excludeExpired) parts.push('(d.valid_until IS NULL OR d.valid_until >= current_date)');
   return parts.join(' AND ');
@@ -50,9 +53,14 @@ interface HitRow {
  * wird. Der Volltext findet exakte Bezeichner wie „R760" oder „ISO 27001", die
  * Vektoren finden Umschreibungen.
  */
-export async function hybridSearch(db: Db, embedder: Embedder, req: SearchRequest): Promise<SearchHit[]> {
+export async function hybridSearch(
+  db: Db,
+  embedder: Embedder,
+  req: SearchRequest,
+): Promise<SearchHit[]> {
   const ranks = new Map<string, number>();
-  const add = (ids: string[]): void => ids.forEach((id, i) => ranks.set(id, (ranks.get(id) ?? 0) + 1 / (RRF_K + i + 1)));
+  const add = (ids: string[]): void =>
+    ids.forEach((id, i) => ranks.set(id, (ranks.get(id) ?? 0) + 1 / (RRF_K + i + 1)));
 
   const tsquery = buildTsQuery(req.query);
   if (tsquery) {

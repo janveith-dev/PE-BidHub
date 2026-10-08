@@ -17,7 +17,8 @@ export const WriterOutputSchema = z.object({
 const ReviseOutputSchema = z.object({ content: z.string().min(1), summary: z.string() });
 
 export function factsBlock(facts: Fact[]): string {
-  if (!facts.length) return '(keine Fakten verfügbar — setze bei allem Firmenspezifischen [OFFEN: …])';
+  if (!facts.length)
+    return '(keine Fakten verfügbar — setze bei allem Firmenspezifischen [OFFEN: …])';
   return facts
     .map((f) => {
       const where = f.sourceType === 'web' ? `Web: ${f.sourceRef}` : 'Wissensbasis';
@@ -27,7 +28,9 @@ export function factsBlock(facts: Fact[]): string {
 }
 
 function outlineBlock(analysis: SpecAnalysis, currentId: string): string {
-  return analysis.outline.map((s) => `${s.number} ${s.title}${s.id === currentId ? '  ← dein Kapitel' : ''}`).join('\n');
+  return analysis.outline
+    .map((s) => `${s.number} ${s.title}${s.id === currentId ? '  ← dein Kapitel' : ''}`)
+    .join('\n');
 }
 
 export interface WriteResult {
@@ -80,10 +83,16 @@ export async function writeSection(
             `Dein Kapitel: ${section.number} „${section.title}"\nZweck: ${section.purpose || '–'}`,
             `Zugeordnete Anforderungen:\n${requirementsBlock(p.requirements)}`,
             `Fakten:\n${factsBlock(p.facts)}`,
-            p.gaps.length ? `Lücken laut Recherche:\n${p.gaps.map((g) => `- ${g}`).join('\n')}` : '',
+            p.gaps.length
+              ? `Lücken laut Recherche:\n${p.gaps.map((g) => `- ${g}`).join('\n')}`
+              : '',
             p.instruction ? `Anweisung des Bid Managers: ${p.instruction}` : '',
-            p.previous ? `Bisheriger Text (überarbeite ihn entsprechend der Anweisung):\n${p.previous}` : '',
-          ].filter(Boolean).join('\n\n'),
+            p.previous
+              ? `Bisheriger Text (überarbeite ihn entsprechend der Anweisung):\n${p.previous}`
+              : '',
+          ]
+            .filter(Boolean)
+            .join('\n\n'),
         },
       ],
     },
@@ -95,11 +104,17 @@ export async function writeSection(
   const notes: string[] = [];
   const cleaned = stripUnknownMarkers(result.parsed!.content, p.facts);
   let content = cleaned.content.trim();
-  if (cleaned.removed.length) notes.push(`Unbekannte Quellenmarken entfernt: ${[...new Set(cleaned.removed)].join(', ')}.`);
+  if (cleaned.removed.length)
+    notes.push(`Unbekannte Quellenmarken entfernt: ${[...new Set(cleaned.removed)].join(', ')}.`);
 
   if (section.max_words && countWords(content) > section.max_words) {
     const before = countWords(content);
-    await emit({ agent, sectionId: section.id, kind: 'info', message: `${before} Wörter bei Grenze ${section.max_words} — Kürzung wird angefordert` });
+    await emit({
+      agent,
+      sectionId: section.id,
+      kind: 'info',
+      message: `${before} Wörter bei Grenze ${section.max_words} — Kürzung wird angefordert`,
+    });
     const shortened = await reviseText(ctx, {
       ...p,
       content,
@@ -108,21 +123,33 @@ export async function writeSection(
     });
     if (countWords(shortened.content) < before) content = shortened.content;
     if (countWords(content) > section.max_words) {
-      notes.push(`Längenlimit überschritten: ${countWords(content)} von höchstens ${section.max_words} Wörtern.`);
+      notes.push(
+        `Längenlimit überschritten: ${countWords(content)} von höchstens ${section.max_words} Wörtern.`,
+      );
     }
   }
 
   const open = openPoints(content);
   if (open.length) notes.push(`Offene Punkte: ${open.join('; ')}`);
   if (p.gaps.length) notes.push(`Lücken laut Recherche: ${p.gaps.join('; ')}`);
-  else if (!p.gapsReported) notes.push('Die Recherche hat keine Lückenmeldung abgegeben — Vollständigkeit der Fakten prüfen.');
+  else if (!p.gapsReported)
+    notes.push(
+      'Die Recherche hat keine Lückenmeldung abgegeben — Vollständigkeit der Fakten prüfen.',
+    );
 
   await emit({
-    agent, sectionId: section.id, kind: 'result',
+    agent,
+    sectionId: section.id,
+    kind: 'result',
     message: `${countWords(content)} Wörter, ${open.length} offene Punkte`,
     data: { usage: result.usage, servedBy: result.servedBy },
   });
-  return { content, notes: notes.join('\n'), openPoints: open, addressed: result.parsed!.addressedRequirementIds };
+  return {
+    content,
+    notes: notes.join('\n'),
+    openPoints: open,
+    addressed: result.parsed!.addressedRequirementIds,
+  };
 }
 
 export async function reviseText(
@@ -145,7 +172,11 @@ export async function reviseText(
     ctx,
     {
       model: p.model ?? ctx.config.models.editor,
-      system: REVISER_SYSTEM({ language: p.analysis.language, analysis: p.analysis, maxWords: p.section.max_words }),
+      system: REVISER_SYSTEM({
+        language: p.analysis.language,
+        analysis: p.analysis,
+        maxWords: p.section.max_words,
+      }),
       effort: 'medium',
       maxTokens: 32_000,
       output: ReviseOutputSchema,
@@ -160,7 +191,13 @@ export async function reviseText(
     agent,
     p.section.id,
   );
-  await p.emit({ agent, sectionId: p.section.id, kind: 'result', message: result.parsed!.summary, data: { usage: result.usage } });
+  await p.emit({
+    agent,
+    sectionId: p.section.id,
+    kind: 'result',
+    message: result.parsed!.summary,
+    data: { usage: result.usage },
+  });
   const cleaned = stripUnknownMarkers(result.parsed!.content, p.facts);
   return { content: cleaned.content.trim(), summary: result.parsed!.summary };
 }
@@ -177,7 +214,11 @@ export async function polishText(
 ): Promise<{ content: string; changed: boolean; reason?: string }> {
   const result = await reviseText(ctx, { ...p, instruction: POLISH_INSTRUCTION });
   if (!sameProtectedTokens(p.content, result.content)) {
-    return { content: p.content, changed: false, reason: 'Zahlen oder Quellenmarken wurden verändert — Überarbeitung verworfen.' };
+    return {
+      content: p.content,
+      changed: false,
+      reason: 'Zahlen oder Quellenmarken wurden verändert — Überarbeitung verworfen.',
+    };
   }
   return { content: result.content, changed: result.content.trim() !== p.content.trim() };
 }

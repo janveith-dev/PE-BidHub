@@ -14,7 +14,14 @@ export interface Config {
   databaseUrl: string;
   dataDir: string;
   anthropicApiKey: string | undefined;
-  models: { chat: string; writer: string; analyst: string; reviewer: string; editor: string; research: string };
+  models: {
+    chat: string;
+    writer: string;
+    analyst: string;
+    reviewer: string;
+    editor: string;
+    research: string;
+  };
   /** Serverseitiger Refusal-Fallback der Claude-API (Opus/Sonnet 5.5). */
   refusalFallback: boolean;
   /** Domains, die die Websuche nie liefern darf (Wettbewerber). */

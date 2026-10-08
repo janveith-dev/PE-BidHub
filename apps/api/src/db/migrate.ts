@@ -14,7 +14,8 @@ function migrationsDir(): string {
     path.join(here, 'db', 'migrations'),
   ].filter((p): p is string => Boolean(p));
   const found = candidates.find((dir) => existsSync(dir));
-  if (!found) throw new Error(`Migrationsverzeichnis nicht gefunden (geprüft: ${candidates.join(', ')})`);
+  if (!found)
+    throw new Error(`Migrationsverzeichnis nicht gefunden (geprüft: ${candidates.join(', ')})`);
   return found;
 }
 
@@ -25,7 +26,9 @@ export async function migrate(db: Db): Promise<string[]> {
        applied_at timestamptz NOT NULL DEFAULT now()
      )`,
   );
-  const applied = new Set((await db.query<{ name: string }>('SELECT name FROM schema_migrations')).map((r) => r.name));
+  const applied = new Set(
+    (await db.query<{ name: string }>('SELECT name FROM schema_migrations')).map((r) => r.name),
+  );
   const dir = migrationsDir();
   const files = readdirSync(dir)
     .filter((f) => f.endsWith('.sql'))

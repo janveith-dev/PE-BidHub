@@ -33,7 +33,10 @@ function configurePg(): void {
 
 class PgliteDb implements Db {
   readonly kind = 'pglite' as const;
-  constructor(private readonly pg: Pick<PGlite, 'query' | 'exec'>, private readonly root?: PGlite) {}
+  constructor(
+    private readonly pg: Pick<PGlite, 'query' | 'exec'>,
+    private readonly root?: PGlite,
+  ) {}
 
   async query<T = Row>(sql: string, params: unknown[] = []): Promise<T[]> {
     const res = await this.pg.query<T>(sql, params);
@@ -56,7 +59,10 @@ class PgliteDb implements Db {
 
 class PostgresDb implements Db {
   readonly kind = 'postgres' as const;
-  constructor(private readonly target: pg.Pool | pg.PoolClient, private readonly pool?: pg.Pool) {}
+  constructor(
+    private readonly target: pg.Pool | pg.PoolClient,
+    private readonly pool?: pg.Pool,
+  ) {}
 
   async query<T = Row>(sql: string, params: unknown[] = []): Promise<T[]> {
     const res = await this.target.query(sql, params);

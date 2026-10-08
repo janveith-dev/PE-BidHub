@@ -1,6 +1,14 @@
 import type { Fact } from '@bid/shared';
 import { openPoints } from '../bid/checks.js';
-import { escapeXml, heading, markdownToBody, para, run, StyleResolver, type RenderOptions } from './ooxml.js';
+import {
+  escapeXml,
+  heading,
+  markdownToBody,
+  para,
+  run,
+  StyleResolver,
+  type RenderOptions,
+} from './ooxml.js';
 import { insertBody, loadTemplate, replacePlaceholders } from './template.js';
 
 export interface ExportSection {
@@ -39,7 +47,11 @@ function sourcesAppendix(sections: ExportSection[], o: RenderOptions): string {
     parts.push(para(run(`Kapitel ${s.number} ${s.title}`, { b: true }), { keepNext: true }));
     for (const f of s.facts) {
       const where = f.sourceType === 'web' ? f.sourceRef : 'interne Unterlage';
-      parts.push(para(run(`[${f.id}] ${f.statement} — ${f.sourceTitle} (${where})`), { ind: { left: 360, hanging: 360 } }));
+      parts.push(
+        para(run(`[${f.id}] ${f.statement} — ${f.sourceTitle} (${where})`), {
+          ind: { left: 360, hanging: 360 },
+        }),
+      );
     }
   }
   return parts.join('');
@@ -58,12 +70,23 @@ export async function buildDocx(input: ExportInput, templateBuffer: Buffer): Pro
         const head = heading(s.level, autoNumbered ? s.title : `${s.number} ${s.title}`, o);
         const text = s.content.trim()
           ? markdownToBody(s.content, s.level, o)
-          : para(run('[OFFEN: Für dieses Kapitel liegt noch kein Text vor.]', { b: true, highlight: true }));
+          : para(
+              run('[OFFEN: Für dieses Kapitel liegt noch kein Text vor.]', {
+                b: true,
+                highlight: true,
+              }),
+            );
         return head + text;
       })
       .join('') + (input.includeSources ? sourcesAppendix(input.sections, o) : '');
 
-  const vars = { TITEL: input.title, KUNDE: input.customer, AUSSCHREIBUNG: input.bidName, DATUM: input.date, AUTOR: input.author };
+  const vars = {
+    TITEL: input.title,
+    KUNDE: input.customer,
+    AUSSCHREIBUNG: input.bidName,
+    DATUM: input.date,
+    AUTOR: input.author,
+  };
   const withVars = replacePlaceholders(tpl.documentXml, vars);
   const { xml, usedMarker } = insertBody(withVars, body);
   tpl.zip.file('word/document.xml', xml);
@@ -77,8 +100,14 @@ export async function buildDocx(input: ExportInput, templateBuffer: Buffer): Pro
   if (core) {
     const coreXml = await core.async('string');
     const titled = /<dc:title>[\s\S]*?<\/dc:title>|<dc:title\/>/.test(coreXml)
-      ? coreXml.replace(/<dc:title>[\s\S]*?<\/dc:title>|<dc:title\/>/, `<dc:title>${escapeXml(input.title)}</dc:title>`)
-      : coreXml.replace('</cp:coreProperties>', `<dc:title>${escapeXml(input.title)}</dc:title></cp:coreProperties>`);
+      ? coreXml.replace(
+          /<dc:title>[\s\S]*?<\/dc:title>|<dc:title\/>/,
+          `<dc:title>${escapeXml(input.title)}</dc:title>`,
+        )
+      : coreXml.replace(
+          '</cp:coreProperties>',
+          `<dc:title>${escapeXml(input.title)}</dc:title></cp:coreProperties>`,
+        );
     tpl.zip.file('docProps/core.xml', titled);
   }
 

@@ -2,8 +2,11 @@
   "name": "bid-hub",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Presales-Wissensbasis, Sales-Chat mit Sprache und Bid-Studio mit KI-Agenten",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "packageManager": "pnpm@10.9.0",
   "scripts": {
     "build": "pnpm -r --filter \"./packages/*\" build && pnpm -r --filter \"./apps/*\" build",
@@ -18,7 +21,11 @@
     "seed": "pnpm --filter @bid/api seed",
     "template:build": "pnpm --filter @bid/api template:build"
   },
-  "pnpm": { "onlyBuiltDependencies": ["esbuild"] },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
     "@types/node": "^22.13.0",

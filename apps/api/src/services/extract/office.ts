@@ -3,11 +3,19 @@ import JSZip from 'jszip';
 import mammoth from 'mammoth';
 import type { Extracted, Section } from './types.js';
 
-const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+const ENTITIES: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  nbsp: ' ',
+};
 
 function decodeEntities(s: string): string {
   return s.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
-    if (e.startsWith('#x') || e.startsWith('#X')) return String.fromCodePoint(Number.parseInt(e.slice(2), 16));
+    if (e.startsWith('#x') || e.startsWith('#X'))
+      return String.fromCodePoint(Number.parseInt(e.slice(2), 16));
     if (e.startsWith('#')) return String.fromCodePoint(Number.parseInt(e.slice(1), 10));
     return ENTITIES[e.toLowerCase()] ?? m;
   });
@@ -25,7 +33,11 @@ const stripTags = (s: string): string =>
  */
 function tableToText(tableHtml: string): string {
   return [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)]
-    .map((row) => [...row[1]!.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((c) => stripTags(c[1]!)).join(' | '))
+    .map((row) =>
+      [...row[1]!.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)]
+        .map((c) => stripTags(c[1]!))
+        .join(' | '),
+    )
     .filter((line) => line.replace(/[|\s]/g, '') !== '')
     .join('\n');
 }
@@ -108,11 +120,19 @@ export async function extractPptx(buffer: Buffer): Promise<Extracted> {
   for (const name of slideFiles) {
     const xml = await zip.files[name]!.async('string');
     const paragraphs = [...xml.matchAll(/<a:p[ >][\s\S]*?<\/a:p>/g)]
-      .map((m) => decodeEntities([...m[0].matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((t) => t[1]).join('')).trim())
+      .map((m) =>
+        decodeEntities(
+          [...m[0].matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((t) => t[1]).join(''),
+        ).trim(),
+      )
       .filter(Boolean);
     if (!paragraphs.length) continue;
     const n = slideNumber(name);
-    sections.push({ heading: `Folie ${n}: ${paragraphs[0]}`, page: n, text: paragraphs.join('\n\n') });
+    sections.push({
+      heading: `Folie ${n}: ${paragraphs[0]}`,
+      page: n,
+      text: paragraphs.join('\n\n'),
+    });
   }
   return { sections, method: 'native', warnings: [] };
 }

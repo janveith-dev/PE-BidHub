@@ -7,5 +7,8 @@ export { AnthropicLlm, toJsonSchema } from './anthropic.js';
 export { FakeLlm, callTool } from './fake.js';
 
 export function createLlm(config: Pick<Config, 'anthropicApiKey' | 'refusalFallback'>): Llm {
-  return new AnthropicLlm({ apiKey: config.anthropicApiKey, refusalFallback: config.refusalFallback });
+  return new AnthropicLlm({
+    apiKey: config.anthropicApiKey,
+    refusalFallback: config.refusalFallback,
+  });
 }

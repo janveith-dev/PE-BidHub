@@ -1,18 +1,31 @@
 import { createReadStream } from 'node:fs';
 import type { FastifyInstance } from 'fastify';
-import { CATEGORY_LABELS, DocumentMetaSchema, DOCUMENT_CATEGORIES, SearchRequestSchema } from '@bid/shared';
+import {
+  CATEGORY_LABELS,
+  DocumentMetaSchema,
+  DOCUMENT_CATEGORIES,
+  SearchRequestSchema,
+} from '@bid/shared';
 import { z } from 'zod';
 import type { AppContext } from '../context.js';
 import { badRequest, HttpError } from '../services/errors.js';
 import {
-  deleteDocument, getDocument, getDocumentFile, getDocumentText, ingestDocument, listDocuments, reindex, updateDocumentMeta,
+  deleteDocument,
+  getDocument,
+  getDocumentFile,
+  getDocumentText,
+  ingestDocument,
+  listDocuments,
+  reindex,
+  updateDocumentMeta,
 } from '../services/knowledge.js';
 import { hybridSearch } from '../services/search.js';
 import { roleOf } from './helpers.js';
 
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
-const optionalText = (v: string | undefined): string | undefined => (v?.trim() ? v.trim() : undefined);
+const optionalText = (v: string | undefined): string | undefined =>
+  v?.trim() ? v.trim() : undefined;
 
 function parseTags(raw: string | undefined): string[] {
   if (!raw?.trim()) return [];
@@ -23,7 +36,10 @@ function parseTags(raw: string | undefined): string[] {
       throw badRequest('tags: ungültiges JSON');
     }
   }
-  return raw.split(',').map((t) => t.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
 }
 
 const PatchSchema = z.object({
@@ -31,8 +47,16 @@ const PatchSchema = z.object({
   category: z.enum(DOCUMENT_CATEGORIES).optional(),
   vendor: z.string().trim().max(120).nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
-  validFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  validFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
+  validUntil: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
 });
 
 export async function registerDocumentRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
@@ -62,7 +86,11 @@ export async function registerDocumentRoutes(app: FastifyInstance, ctx: AppConte
       if (part.type === 'file') {
         if (file) throw badRequest('Bitte jeweils nur eine Datei hochladen.');
         const buffer = await part.toBuffer();
-        if (part.file.truncated) throw new HttpError(413, `Die Datei ist größer als ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`);
+        if (part.file.truncated)
+          throw new HttpError(
+            413,
+            `Die Datei ist größer als ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`,
+          );
         file = { buffer, filename: part.filename, mime: part.mimetype };
       } else if (typeof part.value === 'string') {
         fields[part.fieldname] = part.value;
@@ -90,7 +118,9 @@ export async function registerDocumentRoutes(app: FastifyInstance, ctx: AppConte
     return reply.status(result.duplicate ? 200 : 201).send(result);
   });
 
-  app.get<{ Params: { id: string } }>('/api/documents/:id', async (req) => getDocument(ctx.db, z.uuid().parse(req.params.id)));
+  app.get<{ Params: { id: string } }>('/api/documents/:id', async (req) =>
+    getDocument(ctx.db, z.uuid().parse(req.params.id)),
+  );
 
   app.get<{ Params: { id: string } }>('/api/documents/:id/text', async (req) =>
     getDocumentText(ctx.db, z.uuid().parse(req.params.id)),
@@ -99,7 +129,10 @@ export async function registerDocumentRoutes(app: FastifyInstance, ctx: AppConte
   app.get<{ Params: { id: string } }>('/api/documents/:id/file', async (req, reply) => {
     const file = await getDocumentFile(ctx.db, z.uuid().parse(req.params.id));
     return reply
-      .header('content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`)
+      .header(
+        'content-disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      )
       .type(file.mime || 'application/octet-stream')
       .send(createReadStream(file.path));
   });
@@ -113,7 +146,9 @@ export async function registerDocumentRoutes(app: FastifyInstance, ctx: AppConte
     return reply.status(204).send();
   });
 
-  app.post('/api/search', async (req) => hybridSearch(ctx.db, ctx.embedder, SearchRequestSchema.parse(req.body)));
+  app.post('/api/search', async (req) =>
+    hybridSearch(ctx.db, ctx.embedder, SearchRequestSchema.parse(req.body)),
+  );
 
   app.post('/api/admin/reindex', async () => reindex({ db: ctx.db, embedder: ctx.embedder }));
 }

@@ -23,7 +23,10 @@ export function makePdf(pages: string[]): Buffer {
   }
   const xref = out.length;
   out += `xref\n0 ${objs.length}\n0000000000 65535 f \n`;
-  out += offsets.slice(1).map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('');
+  out += offsets
+    .slice(1)
+    .map((o) => `${String(o).padStart(10, '0')} 00000 n \n`)
+    .join('');
   out += `trailer\n<< /Size ${objs.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
   return Buffer.from(out, 'latin1');
 }
@@ -39,8 +42,16 @@ export async function makeDocx(): Promise<Buffer> {
           new Paragraph('Störungen der Priorität 1 werden innerhalb von 30 Minuten bearbeitet.'),
           new Table({
             rows: [
-              new TableRow({ children: ['Priorität', 'Reaktionszeit'].map((t) => new TableCell({ children: [new Paragraph(t)] })) }),
-              new TableRow({ children: ['1', '30 Minuten'].map((t) => new TableCell({ children: [new Paragraph(t)] })) }),
+              new TableRow({
+                children: ['Priorität', 'Reaktionszeit'].map(
+                  (t) => new TableCell({ children: [new Paragraph(t)] }),
+                ),
+              }),
+              new TableRow({
+                children: ['1', '30 Minuten'].map(
+                  (t) => new TableCell({ children: [new Paragraph(t)] }),
+                ),
+              }),
             ],
           }),
         ],
@@ -60,8 +71,13 @@ export async function makeXlsx(rows: string[][], sheetName = 'Preise'): Promise<
 export async function makePptx(slides: string[][]): Promise<Buffer> {
   const zip = new JSZip();
   slides.forEach((paragraphs, i) => {
-    const body = paragraphs.map((t) => `<a:p><a:r><a:t>${t.replace(/&/g, '&amp;')}</a:t></a:r></a:p>`).join('');
-    zip.file(`ppt/slides/slide${i + 1}.xml`, `<p:sld xmlns:a="a" xmlns:p="p"><p:txBody>${body}</p:txBody></p:sld>`);
+    const body = paragraphs
+      .map((t) => `<a:p><a:r><a:t>${t.replace(/&/g, '&amp;')}</a:t></a:r></a:p>`)
+      .join('');
+    zip.file(
+      `ppt/slides/slide${i + 1}.xml`,
+      `<p:sld xmlns:a="a" xmlns:p="p"><p:txBody>${body}</p:txBody></p:sld>`,
+    );
   });
   return Buffer.from(await zip.generateAsync({ type: 'uint8array' }));
 }

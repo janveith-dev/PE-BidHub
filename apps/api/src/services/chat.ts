@@ -24,7 +24,9 @@ Die Antwort wird vorgelesen: höchstens vier kurze Sätze, keine Aufzählungen, 
 const SearchInput = z.object({
   query: z.string().min(1).describe('Suchbegriffe oder eine kurze Frage'),
   categories: z
-    .array(z.enum(['product', 'concept', 'config', 'pricelist', 'certificate', 'reference', 'other']))
+    .array(
+      z.enum(['product', 'concept', 'config', 'pricelist', 'certificate', 'reference', 'other']),
+    )
     .optional()
     .describe('Auf Kategorien einschränken'),
   vendor: z.string().optional().describe('Auf einen Hersteller einschränken, z. B. Dell'),
@@ -73,9 +75,10 @@ export async function chatTurn(
     if (!exists) throw notFound('Chat-Sitzung');
   } else {
     const title = input.message.replace(/\s+/g, ' ').slice(0, 60);
-    sessionId = (await db.one<{ id: string }>('INSERT INTO chat_sessions (title, role) VALUES ($1, $2) RETURNING id', [
-      title, input.role ?? null,
-    ]))!.id;
+    sessionId = (await db.one<{ id: string }>(
+      'INSERT INTO chat_sessions (title, role) VALUES ($1, $2) RETURNING id',
+      [title, input.role ?? null],
+    ))!.id;
   }
   cb.onSession?.(sessionId);
 
@@ -96,8 +99,11 @@ export async function chatTurn(
     schema: SearchInput,
     run: async ({ query, categories, vendor }) => {
       const hits = await hybridSearch(db, ctx.embedder, {
-        query, limit: 6, excludeExpired: false,
-        ...(categories ? { categories } : {}), ...(vendor ? { vendor } : {}),
+        query,
+        limit: 6,
+        excludeExpired: false,
+        ...(categories ? { categories } : {}),
+        ...(vendor ? { vendor } : {}),
       });
       if (!hits.length) return 'Keine Fundstellen. Die Wissensbasis enthält dazu nichts Passendes.';
       return hits
@@ -140,10 +146,15 @@ export async function chatTurn(
   }));
 
   await db.tx(async (tx) => {
-    await tx.query('INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)', [sessionId, 'user', input.message]);
-    await tx.query('INSERT INTO chat_messages (session_id, role, content, sources) VALUES ($1, $2, $3, $4::jsonb)', [
-      sessionId, 'assistant', answer, JSON.stringify(sources),
+    await tx.query('INSERT INTO chat_messages (session_id, role, content) VALUES ($1, $2, $3)', [
+      sessionId,
+      'user',
+      input.message,
     ]);
+    await tx.query(
+      'INSERT INTO chat_messages (session_id, role, content, sources) VALUES ($1, $2, $3, $4::jsonb)',
+      [sessionId, 'assistant', answer, JSON.stringify(sources)],
+    );
     await tx.query('UPDATE chat_sessions SET updated_at = now() WHERE id = $1', [sessionId]);
   });
 
@@ -157,9 +168,18 @@ export async function listSessions(db: AppContext['db']) {
 }
 
 export async function getSession(db: AppContext['db'], id: string) {
-  const session = await db.one<{ id: string; title: string }>('SELECT id, title FROM chat_sessions WHERE id = $1', [id]);
+  const session = await db.one<{ id: string; title: string }>(
+    'SELECT id, title FROM chat_sessions WHERE id = $1',
+    [id],
+  );
   if (!session) throw notFound('Chat-Sitzung');
-  const messages = await db.query<{ id: string; role: string; content: string; sources: ChatSource[]; created_at: string }>(
+  const messages = await db.query<{
+    id: string;
+    role: string;
+    content: string;
+    sources: ChatSource[];
+    created_at: string;
+  }>(
     'SELECT id, role, content, sources, created_at FROM chat_messages WHERE session_id = $1 ORDER BY created_at, role DESC',
     [id],
   );

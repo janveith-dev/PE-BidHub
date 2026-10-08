@@ -29,7 +29,10 @@ export function normalizeAnalysis(raw: SpecAnalysis, specText: string): Analysis
   });
 
   const unverified = requirements.filter((r) => r.quoteVerified === false).length;
-  if (unverified) warnings.push(`${unverified} Zitat(e) konnten in der Vorgabe nicht wiedergefunden werden — bitte gegen das Original prüfen.`);
+  if (unverified)
+    warnings.push(
+      `${unverified} Zitat(e) konnten in der Vorgabe nicht wiedergefunden werden — bitte gegen das Original prüfen.`,
+    );
 
   let dropped = 0;
   const outline = raw.outline.map((s, i) => {
@@ -42,14 +45,24 @@ export function normalizeAnalysis(raw: SpecAnalysis, specText: string): Analysis
         }),
       ),
     ];
-    return { ...s, id: `S-${pad(i + 1, 2)}`, level: Math.min(3, Math.max(1, s.level)), requirementIds };
+    return {
+      ...s,
+      id: `S-${pad(i + 1, 2)}`,
+      level: Math.min(3, Math.max(1, s.level)),
+      requirementIds,
+    };
   });
-  if (dropped) warnings.push(`${dropped} Verweis(e) der Gliederung auf unbekannte Anforderungen wurden entfernt.`);
+  if (dropped)
+    warnings.push(
+      `${dropped} Verweis(e) der Gliederung auf unbekannte Anforderungen wurden entfernt.`,
+    );
 
   const assigned = new Set(outline.flatMap((s) => s.requirementIds));
   const missing = requirements.filter((r) => r.kind === 'must' && !assigned.has(r.id));
   if (missing.length) {
-    warnings.push(`${missing.length} Muss-Anforderung(en) sind keinem Kapitel zugeordnet: ${missing.map((r) => r.id).join(', ')}.`);
+    warnings.push(
+      `${missing.length} Muss-Anforderung(en) sind keinem Kapitel zugeordnet: ${missing.map((r) => r.id).join(', ')}.`,
+    );
   }
   if (!outline.length) warnings.push('Die Gliederung ist leer.');
   if (!requirements.length) warnings.push('Es wurden keine Anforderungen erkannt.');
@@ -57,7 +70,12 @@ export function normalizeAnalysis(raw: SpecAnalysis, specText: string): Analysis
   return { analysis: { ...raw, requirements, outline }, warnings };
 }
 
-export async function runAnalyst(ctx: AppContext, doc: BidDocumentRow, bid: BidRow, emit: Emit): Promise<AnalysisResult> {
+export async function runAnalyst(
+  ctx: AppContext,
+  doc: BidDocumentRow,
+  bid: BidRow,
+  emit: Emit,
+): Promise<AnalysisResult> {
   const result = await runStructured(
     ctx,
     {
@@ -77,7 +95,8 @@ export async function runAnalyst(ctx: AppContext, doc: BidDocumentRow, bid: BidR
     'analyst',
   );
   await emit({
-    agent: 'analyst', kind: 'result',
+    agent: 'analyst',
+    kind: 'result',
     message: `${result.parsed!.requirements.length} Anforderungen, ${result.parsed!.outline.length} Kapitel erkannt`,
     data: { usage: result.usage },
   });

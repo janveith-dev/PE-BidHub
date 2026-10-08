@@ -1,12 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { openDb, toVectorLiteral, type Db } from './client.js';
+import { openTestDb } from '../test-db.js';
+import { toVectorLiteral, type Db } from './client.js';
 import { migrate } from './migrate.js';
 
 describe('Datenbank', () => {
   let db: Db;
   beforeAll(async () => {
-    db = await openDb('memory');
-    await migrate(db);
+    db = await openTestDb();
   });
   afterAll(async () => db.close());
 
@@ -16,7 +16,12 @@ describe('Datenbank', () => {
 
   it('liefert Datum, Zähler und Zeitstempel einheitlich', async () => {
     const family = '11111111-1111-4111-8111-111111111111';
-    const doc = await db.one<{ id: string; valid_until: string; size_bytes: number; created_at: string }>(
+    const doc = await db.one<{
+      id: string;
+      valid_until: string;
+      size_bytes: number;
+      created_at: string;
+    }>(
       `INSERT INTO documents (family_id, title, category, filename, mime, size_bytes, sha256, storage_path, content_text, extraction_method, valid_until)
        VALUES ($1, 'T', 'product', 'a.txt', 'text/plain', 12, 'x', '/x', 'inhalt', 'text', '2027-03-31') RETURNING *`,
       [family],
@@ -46,9 +51,15 @@ describe('Datenbank', () => {
   });
 
   it('durchsucht deutschen und englischen Text im Volltext', async () => {
-    await db.query(`INSERT INTO chunks (document_id, ordinal, content) SELECT id, 9, 'Wir erbringen Dienstleistungen im Rechenzentrum' FROM documents LIMIT 1`);
-    await db.query(`INSERT INTO chunks (document_id, ordinal, content) SELECT id, 10, 'Servers are operated in the data center' FROM documents LIMIT 1`);
-    const de = await db.query(`SELECT 1 FROM chunks WHERE tsv @@ to_tsquery('german', 'Dienstleistung')`);
+    await db.query(
+      `INSERT INTO chunks (document_id, ordinal, content) SELECT id, 9, 'Wir erbringen Dienstleistungen im Rechenzentrum' FROM documents LIMIT 1`,
+    );
+    await db.query(
+      `INSERT INTO chunks (document_id, ordinal, content) SELECT id, 10, 'Servers are operated in the data center' FROM documents LIMIT 1`,
+    );
+    const de = await db.query(
+      `SELECT 1 FROM chunks WHERE tsv @@ to_tsquery('german', 'Dienstleistung')`,
+    );
     const en = await db.query(`SELECT 1 FROM chunks WHERE tsv @@ to_tsquery('english', 'operate')`);
     expect(de.length).toBe(1);
     expect(en.length).toBe(1);

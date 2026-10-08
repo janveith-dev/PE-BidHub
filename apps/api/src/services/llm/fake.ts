@@ -1,6 +1,11 @@
 import { emptyUsage, type AgentRequest, type AgentResult, type Llm } from './types.js';
 
-type Handler = (req: AgentRequest<never>, callIndex: number) => Promise<Partial<AgentResult<unknown>> & { json?: unknown }> | Partial<AgentResult<unknown>> & { json?: unknown };
+type Handler = (
+  req: AgentRequest<never>,
+  callIndex: number,
+) =>
+  | Promise<Partial<AgentResult<unknown>> & { json?: unknown }>
+  | (Partial<AgentResult<unknown>> & { json?: unknown });
 
 /**
  * Skriptbarer Ersatz für die Claude-API in Tests. Der Handler sieht die
@@ -16,7 +21,10 @@ export class FakeLlm implements Llm {
     const out = await this.handler(req as unknown as AgentRequest<never>, index);
     const text = out.text ?? (out.json !== undefined ? JSON.stringify(out.json) : '');
     if (out.text) req.onText?.(out.text);
-    const parsed = req.output && out.json !== undefined ? (req.output.parse(out.json) as T) : (out.parsed as T | undefined);
+    const parsed =
+      req.output && out.json !== undefined
+        ? (req.output.parse(out.json) as T)
+        : (out.parsed as T | undefined);
     return {
       text,
       parsed,
@@ -33,7 +41,11 @@ export class FakeLlm implements Llm {
  * Ruft ein Werkzeug der Anfrage so auf, wie es das Modell täte: Eingabeprüfung inklusive, und Fehler
  * kommen — wie in der echten Schleife — als Text zurück statt als Ausnahme.
  */
-export async function callTool(req: AgentRequest<never>, name: string, input: unknown): Promise<string> {
+export async function callTool(
+  req: AgentRequest<never>,
+  name: string,
+  input: unknown,
+): Promise<string> {
   const tool = req.tools?.find((t) => t.name === name);
   if (!tool) throw new Error(`Werkzeug ${name} ist in dieser Anfrage nicht vorhanden`);
   const parsed = tool.schema.safeParse(input);

@@ -7,7 +7,9 @@ import { roleOf } from './helpers.js';
 
 export async function registerChatRoutes(app: FastifyInstance, ctx: AppContext): Promise<void> {
   app.get('/api/chat/sessions', async () => listSessions(ctx.db));
-  app.get<{ Params: { id: string } }>('/api/chat/sessions/:id', async (req) => getSession(ctx.db, z.uuid().parse(req.params.id)));
+  app.get<{ Params: { id: string } }>('/api/chat/sessions/:id', async (req) =>
+    getSession(ctx.db, z.uuid().parse(req.params.id)),
+  );
   app.delete<{ Params: { id: string } }>('/api/chat/sessions/:id', async (req, reply) => {
     await deleteSession(ctx.db, z.uuid().parse(req.params.id));
     return reply.status(204).send();
@@ -25,7 +27,8 @@ export async function registerChatRoutes(app: FastifyInstance, ctx: AppContext):
     const raw = reply.raw;
     // hijack() umgeht reply.send; bereits gesetzte Header (CORS) müssen von Hand mitgegeben werden.
     const inherited: Record<string, string | number | string[]> = {};
-    for (const [name, value] of Object.entries(reply.getHeaders())) if (value !== undefined) inherited[name] = value;
+    for (const [name, value] of Object.entries(reply.getHeaders()))
+      if (value !== undefined) inherited[name] = value;
     raw.writeHead(200, {
       ...inherited,
       'content-type': 'application/x-ndjson; charset=utf-8',
@@ -48,7 +51,8 @@ export async function registerChatRoutes(app: FastifyInstance, ctx: AppContext):
           onSession: (id) => send({ type: 'session', id }),
           onText: (delta) => send({ type: 'text', delta }),
           onEvent: (e) => {
-            if (e.type === 'tool_call') send({ type: 'status', message: 'Durchsuche die Wissensbasis …' });
+            if (e.type === 'tool_call')
+              send({ type: 'status', message: 'Durchsuche die Wissensbasis …' });
           },
         },
       );

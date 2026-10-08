@@ -6,14 +6,38 @@ import { buildDefaultTemplate } from './default-template.js';
 import { buildDocx, type ExportInput } from './docx-export.js';
 import { insertBody, loadTemplate, replacePlaceholders } from './template.js';
 
-const fact = (id: string, statement: string) => ({ id, statement, sourceType: 'kb' as const, sourceRef: 'doc', sourceTitle: 'Betriebskonzept', quoteVerified: true });
+const fact = (id: string, statement: string) => ({
+  id,
+  statement,
+  sourceType: 'kb' as const,
+  sourceRef: 'doc',
+  sourceTitle: 'Betriebskonzept',
+  quoteVerified: true,
+});
 
 const input = (over: Partial<ExportInput> = {}): ExportInput => ({
-  title: 'Servicekonzept', customer: 'Stadt Beispielstadt', bidName: 'RZ-Betrieb', date: '8. Oktober 2026', author: 'public edge GmbH',
+  title: 'Servicekonzept',
+  customer: 'Stadt Beispielstadt',
+  bidName: 'RZ-Betrieb',
+  date: '8. Oktober 2026',
+  author: 'public edge GmbH',
   includeSources: false,
   sections: [
-    { number: '1', title: 'Incident Management', level: 1, facts: [fact('F1', 'Priorität 1 in 30 Minuten.')], content: 'Wir reagieren in 30 Minuten [F1].\n\n### Eskalation\n\n- Stufe 1\n- Stufe 2\n  - Teamleitung' },
-    { number: '1.1', title: 'Monitoring', level: 2, facts: [], content: '[OFFEN: Werkzeuge nennen]' },
+    {
+      number: '1',
+      title: 'Incident Management',
+      level: 1,
+      facts: [fact('F1', 'Priorität 1 in 30 Minuten.')],
+      content:
+        'Wir reagieren in 30 Minuten [F1].\n\n### Eskalation\n\n- Stufe 1\n- Stufe 2\n  - Teamleitung',
+    },
+    {
+      number: '1.1',
+      title: 'Monitoring',
+      level: 2,
+      facts: [],
+      content: '[OFFEN: Werkzeuge nennen]',
+    },
   ],
   ...over,
 });
@@ -30,9 +54,13 @@ async function parts(buf: Buffer) {
 }
 
 /** Passt eine Datei der Vorlage an und gibt die neue Vorlage zurück. */
-async function modify(buf: Buffer, edits: Record<string, (xml: string) => string>): Promise<Buffer> {
+async function modify(
+  buf: Buffer,
+  edits: Record<string, (xml: string) => string>,
+): Promise<Buffer> {
   const zip = await JSZip.loadAsync(buf);
-  for (const [name, fn] of Object.entries(edits)) zip.file(name, fn(await zip.file(name)!.async('string')));
+  for (const [name, fn] of Object.entries(edits))
+    zip.file(name, fn(await zip.file(name)!.async('string')));
   return Buffer.from(await zip.generateAsync({ type: 'uint8array' }));
 }
 
@@ -44,7 +72,8 @@ describe('Standardvorlage', () => {
       expect(styles.toLowerCase()).toContain(`w:val="${name.toLowerCase()}"`);
     }
     const doc = await read('word/document.xml');
-    for (const ph of ['{{TITEL}}', '{{KUNDE}}', '{{AUSSCHREIBUNG}}', '{{DATUM}}', '{{INHALT}}']) expect(doc).toContain(ph);
+    for (const ph of ['{{TITEL}}', '{{KUNDE}}', '{{AUSSCHREIBUNG}}', '{{DATUM}}', '{{INHALT}}'])
+      expect(doc).toContain(ph);
   });
 });
 
@@ -52,7 +81,9 @@ describe('DOCX-Export', () => {
   it('erzeugt wohlgeformtes XML in allen Teilen', async () => {
     const out = await buildDocx(input({ includeSources: true }), template);
     const { zip, read } = await parts(out.buffer);
-    for (const name of Object.keys(zip.files).filter((n) => /^(word\/(document|styles|header\d*|footer\d*|numbering)|docProps\/core)\.xml$/.test(n))) {
+    for (const name of Object.keys(zip.files).filter((n) =>
+      /^(word\/(document|styles|header\d*|footer\d*|numbering)|docProps\/core)\.xml$/.test(n),
+    )) {
       expect(XMLValidator.validate(await read(name)), name).toBe(true);
     }
   });
@@ -81,7 +112,10 @@ describe('DOCX-Export', () => {
   it('lässt die Nummern weg, wenn der Überschriftenstil der Vorlage selbst nummeriert', async () => {
     const numbered = await modify(template, {
       'word/styles.xml': (xml) =>
-        xml.replace(/(<w:style [^>]*w:styleId="Heading1"[^>]*>[\s\S]*?<w:pPr>)/, '$1<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>'),
+        xml.replace(
+          /(<w:style [^>]*w:styleId="Heading1"[^>]*>[\s\S]*?<w:pPr>)/,
+          '$1<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>',
+        ),
     });
     const { buffer } = await buildDocx(input(), numbered);
     const text = (await mammoth.extractRawText({ buffer })).value;
@@ -104,7 +138,15 @@ describe('DOCX-Export', () => {
   });
 
   it('hebt offene Punkte hervor und meldet sie, auch bei leeren Kapiteln', async () => {
-    const out = await buildDocx(input({ sections: [...input().sections, { number: '2', title: 'Leer', level: 1, facts: [], content: '' }] }), template);
+    const out = await buildDocx(
+      input({
+        sections: [
+          ...input().sections,
+          { number: '2', title: 'Leer', level: 1, facts: [], content: '' },
+        ],
+      }),
+      template,
+    );
     expect(out.openPoints).toEqual(['Werkzeuge nennen']);
     const doc = await (await parts(out.buffer)).read('word/document.xml');
     expect(doc.match(/<w:highlight w:val="yellow"\/>/g)).toHaveLength(2); // [OFFEN] + Platzhalter für das leere Kapitel
@@ -114,13 +156,25 @@ describe('DOCX-Export', () => {
   it('maskiert Sonderzeichen in Text, Titel und Kundennamen', async () => {
     const out = await buildDocx(
       input({
-        title: 'Konzept <A & B>', customer: 'Müller & Söhne <GmbH>',
-        sections: [{ number: '1', title: 'Soll & Haben', level: 1, facts: [], content: 'Preis: 5 < 6 & 7 > 6, „Anführungszeichen" und "gerade".\n\n`a<b>&c`' }],
+        title: 'Konzept <A & B>',
+        customer: 'Müller & Söhne <GmbH>',
+        sections: [
+          {
+            number: '1',
+            title: 'Soll & Haben',
+            level: 1,
+            facts: [],
+            content: 'Preis: 5 < 6 & 7 > 6, „Anführungszeichen" und "gerade".\n\n`a<b>&c`',
+          },
+        ],
       }),
       template,
     );
     const { zip, read } = await parts(out.buffer);
-    for (const n of Object.keys(zip.files).filter((x) => /^word\/(document|header\d*)\.xml$/.test(x))) expect(XMLValidator.validate(await read(n)), n).toBe(true);
+    for (const n of Object.keys(zip.files).filter((x) =>
+      /^word\/(document|header\d*)\.xml$/.test(x),
+    ))
+      expect(XMLValidator.validate(await read(n)), n).toBe(true);
     const text = (await mammoth.extractRawText({ buffer: out.buffer })).value;
     expect(text).toContain('Konzept <A & B>');
     expect(text).toContain('Müller & Söhne <GmbH>');
@@ -129,12 +183,40 @@ describe('DOCX-Export', () => {
   });
 
   it('entfernt Steuerzeichen, die XML nicht verträgt', async () => {
-    const out = await buildDocx(input({ sections: [{ number: '1', title: 'T', level: 1, facts: [], content: 'Text\u0000mit\u0008Steuerzeichen und \u000Bmehr.' }] }), template);
-    expect(XMLValidator.validate(await (await parts(out.buffer)).read('word/document.xml'))).toBe(true);
+    const out = await buildDocx(
+      input({
+        sections: [
+          {
+            number: '1',
+            title: 'T',
+            level: 1,
+            facts: [],
+            content: 'Text\u0000mit\u0008Steuerzeichen und \u000Bmehr.',
+          },
+        ],
+      }),
+      template,
+    );
+    expect(XMLValidator.validate(await (await parts(out.buffer)).read('word/document.xml'))).toBe(
+      true,
+    );
   });
 
   it('wandelt Tabellen mit Kopfzeile', async () => {
-    const out = await buildDocx(input({ sections: [{ number: '1', title: 'SLA', level: 1, facts: [], content: '| Prio | Zeit |\n|---|---|\n| 1 | 30 min |\n| 2 | 2 h |' }] }), template);
+    const out = await buildDocx(
+      input({
+        sections: [
+          {
+            number: '1',
+            title: 'SLA',
+            level: 1,
+            facts: [],
+            content: '| Prio | Zeit |\n|---|---|\n| 1 | 30 min |\n| 2 | 2 h |',
+          },
+        ],
+      }),
+      template,
+    );
     const doc = await (await parts(out.buffer)).read('word/document.xml');
     expect(doc.match(/<w:tr>/g)).toHaveLength(3);
     expect(doc).toContain('<w:tblHeader/>');
@@ -145,7 +227,8 @@ describe('DOCX-Export', () => {
 describe('Firmenvorlagen', () => {
   it('macht aus einer .dotx ein Dokument', async () => {
     const dotx = await modify(template, {
-      '[Content_Types].xml': (xml) => xml.replace('wordprocessingml.document.main+xml', 'wordprocessingml.template.main+xml'),
+      '[Content_Types].xml': (xml) =>
+        xml.replace('wordprocessingml.document.main+xml', 'wordprocessingml.template.main+xml'),
     });
     expect(await (await parts(dotx)).read('[Content_Types].xml')).toContain('template.main+xml');
     const out = await buildDocx(input(), dotx);
@@ -156,7 +239,8 @@ describe('Firmenvorlagen', () => {
 
   it('ersetzt Platzhalter, die Word auf mehrere Textläufe verteilt hat', async () => {
     const split = await modify(template, {
-      'word/document.xml': (xml) => xml.replace(/<w:t[^>]*>\{\{KUNDE\}\}<\/w:t>/, '<w:t>{{KU</w:t></w:r><w:r><w:t>NDE}}</w:t>'),
+      'word/document.xml': (xml) =>
+        xml.replace(/<w:t[^>]*>\{\{KUNDE\}\}<\/w:t>/, '<w:t>{{KU</w:t></w:r><w:r><w:t>NDE}}</w:t>'),
     });
     expect(await (await parts(split)).read('word/document.xml')).toContain('{{KU</w:t>');
     const out = await buildDocx(input(), split);
@@ -167,7 +251,8 @@ describe('Firmenvorlagen', () => {
 
   it('hängt den Inhalt an, wenn die Vorlage keine Inhaltsmarke hat, und behält den Vorlagentext', async () => {
     const noMarker = await modify(template, {
-      'word/document.xml': (xml) => xml.replace(/<w:p[ >](?:(?!<\/w:p>)[\s\S])*\{\{INHALT\}\}[\s\S]*?<\/w:p>/, ''),
+      'word/document.xml': (xml) =>
+        xml.replace(/<w:p[ >](?:(?!<\/w:p>)[\s\S])*\{\{INHALT\}\}[\s\S]*?<\/w:p>/, ''),
     });
     const out = await buildDocx(input(), noMarker);
     expect(out.usedContentMarker).toBe(false);
@@ -180,11 +265,14 @@ describe('Firmenvorlagen', () => {
 
   it('nutzt Listenstile der Vorlage und fällt sonst auf Aufzählungszeichen zurück', async () => {
     const without = await buildDocx(input(), template);
-    expect((await (await parts(without.buffer)).read('word/document.xml'))).toContain('•');
+    expect(await (await parts(without.buffer)).read('word/document.xml')).toContain('•');
 
     const withStyles = await modify(template, {
       'word/styles.xml': (xml) =>
-        xml.replace('</w:styles>', '<w:style w:type="paragraph" w:styleId="Aufzaehlung"><w:name w:val="List Bullet"/><w:basedOn w:val="Normal"/></w:style></w:styles>'),
+        xml.replace(
+          '</w:styles>',
+          '<w:style w:type="paragraph" w:styleId="Aufzaehlung"><w:name w:val="List Bullet"/><w:basedOn w:val="Normal"/></w:style></w:styles>',
+        ),
     });
     const out = await buildDocx(input(), withStyles);
     const doc = await (await parts(out.buffer)).read('word/document.xml');
@@ -196,18 +284,23 @@ describe('Firmenvorlagen', () => {
     await expect(loadTemplate(Buffer.from('kein zip'))).rejects.toMatchObject({ status: 422 });
     const zip = new JSZip();
     zip.file('hallo.txt', 'x');
-    await expect(loadTemplate(Buffer.from(await zip.generateAsync({ type: 'uint8array' })))).rejects.toMatchObject({ status: 422 });
+    await expect(
+      loadTemplate(Buffer.from(await zip.generateAsync({ type: 'uint8array' }))),
+    ).rejects.toMatchObject({ status: 422 });
   });
 });
 
 describe('Platzhalter', () => {
   it('lässt unbekannte Platzhalter stehen und maskiert Werte', () => {
     const xml = '<w:p><w:r><w:t>{{KUNDE}} und {{UNBEKANNT}}</w:t></w:r></w:p>';
-    expect(replacePlaceholders(xml, { KUNDE: 'A & B' })).toBe('<w:p><w:r><w:t xml:space="preserve">A &amp; B und {{UNBEKANNT}}</w:t></w:r></w:p>');
+    expect(replacePlaceholders(xml, { KUNDE: 'A & B' })).toBe(
+      '<w:p><w:r><w:t xml:space="preserve">A &amp; B und {{UNBEKANNT}}</w:t></w:r></w:p>',
+    );
   });
 
   it('füllt nur den ersten Marken-Absatz', () => {
-    const xml = '<w:body><w:p><w:r><w:t>{{INHALT}}</w:t></w:r></w:p><w:p><w:r><w:t>{{INHALT}}</w:t></w:r></w:p></w:body>';
+    const xml =
+      '<w:body><w:p><w:r><w:t>{{INHALT}}</w:t></w:r></w:p><w:p><w:r><w:t>{{INHALT}}</w:t></w:r></w:p></w:body>';
     const { xml: out } = insertBody(xml, '<w:p>X</w:p>');
     expect(out).toBe('<w:body><w:p>X</w:p><w:p><w:r><w:t>{{INHALT}}</w:t></w:r></w:p></w:body>');
   });

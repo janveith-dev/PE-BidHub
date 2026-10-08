@@ -2,9 +2,12 @@ import JSZip from 'jszip';
 import { HttpError } from '../errors.js';
 import { escapeXml } from './ooxml.js';
 
-const TEMPLATE_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml';
-const DOCUMENT_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
-const MACRO_TEMPLATE_CONTENT_TYPE = 'application/vnd.ms-word.template.macroEnabledTemplate.main+xml';
+const TEMPLATE_CONTENT_TYPE =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml';
+const DOCUMENT_CONTENT_TYPE =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
+const MACRO_TEMPLATE_CONTENT_TYPE =
+  'application/vnd.ms-word.template.macroEnabledTemplate.main+xml';
 
 export const CONTENT_MARKER = '{{INHALT}}';
 
@@ -31,12 +34,15 @@ export async function loadTemplate(buffer: Buffer): Promise<TemplateParts> {
   }
   const doc = zip.file('word/document.xml');
   const types = zip.file('[Content_Types].xml');
-  if (!doc || !types) throw new HttpError(422, 'Die Vorlage ist keine gültige Word-Datei (word/document.xml fehlt).');
+  if (!doc || !types)
+    throw new HttpError(422, 'Die Vorlage ist keine gültige Word-Datei (word/document.xml fehlt).');
 
   const typesXml = await types.async('string');
   zip.file(
     '[Content_Types].xml',
-    typesXml.replaceAll(TEMPLATE_CONTENT_TYPE, DOCUMENT_CONTENT_TYPE).replaceAll(MACRO_TEMPLATE_CONTENT_TYPE, DOCUMENT_CONTENT_TYPE),
+    typesXml
+      .replaceAll(TEMPLATE_CONTENT_TYPE, DOCUMENT_CONTENT_TYPE)
+      .replaceAll(MACRO_TEMPLATE_CONTENT_TYPE, DOCUMENT_CONTENT_TYPE),
   );
 
   return {
@@ -56,7 +62,9 @@ export function replacePlaceholders(xml: string, vars: Record<string, string>): 
   return xml.replace(PARAGRAPH, (p) => {
     const full = paragraphText(p);
     if (!full.includes('{{')) return p;
-    const next = full.replace(/\{\{([A-ZÄÖÜ_]+)\}\}/g, (match, key: string) => (key in vars ? escapeXml(vars[key]!) : match));
+    const next = full.replace(/\{\{([A-ZÄÖÜ_]+)\}\}/g, (match, key: string) =>
+      key in vars ? escapeXml(vars[key]!) : match,
+    );
     if (next === full) return p;
     let first = true;
     return p.replace(/<w:t(?: [^>]*)?>[^<]*<\/w:t>/g, () => {
@@ -73,7 +81,10 @@ export function replacePlaceholders(xml: string, vars: Record<string, string>): 
  * Setzt den Inhalt an die Stelle des Platzhalter-Absatzes {{INHALT}}. Gibt es ihn nicht, kommt der
  * Inhalt hinter den vorhandenen Vorlagentext (z. B. ein Deckblatt) und vor die Seiteneinstellungen.
  */
-export function insertBody(documentXml: string, bodyXml: string): { xml: string; usedMarker: boolean } {
+export function insertBody(
+  documentXml: string,
+  bodyXml: string,
+): { xml: string; usedMarker: boolean } {
   let used = false;
   const replaced = documentXml.replace(PARAGRAPH, (p) => {
     if (used || !paragraphText(p).includes(CONTENT_MARKER)) return p;

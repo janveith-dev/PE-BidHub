@@ -6,7 +6,9 @@ export class StyleResolver {
   private readonly numbered = new Set<string>();
 
   constructor(stylesXml: string) {
-    for (const m of stylesXml.matchAll(/<w:style\b[^>]*?w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g)) {
+    for (const m of stylesXml.matchAll(
+      /<w:style\b[^>]*?w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g,
+    )) {
       const id = m[1]!;
       const name = /<w:name w:val="([^"]+)"/.exec(m[2]!)?.[1];
       if (name) this.byName.set(name.toLowerCase(), id);
@@ -40,6 +42,7 @@ interface Fmt {
 }
 
 // XML 1.0 erlaubt keine Steuerzeichen; sie stammen gelegentlich aus PDF-Text.
+// eslint-disable-next-line no-control-regex
 const INVALID_XML = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g;
 export const escapeXml = (s: string): string =>
   s.replace(INVALID_XML, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -77,7 +80,9 @@ export function para(runs: string, p: ParaProps = {}): string {
   const ppr = [
     p.style ? `<w:pStyle w:val="${p.style}"/>` : '',
     p.keepNext ? '<w:keepNext/>' : '',
-    p.ind ? `<w:ind w:left="${p.ind.left}"${p.ind.hanging ? ` w:hanging="${p.ind.hanging}"` : ''}/>` : '',
+    p.ind
+      ? `<w:ind w:left="${p.ind.left}"${p.ind.hanging ? ` w:hanging="${p.ind.hanging}"` : ''}/>`
+      : '',
   ].join('');
   return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${runs}</w:p>`;
 }
@@ -115,7 +120,9 @@ function inline(tokens: Token[] | undefined, f: Fmt, o: RenderOptions): string {
       switch (t.type) {
         case 'text': {
           const tt = t as Tokens.Text;
-          return tt.tokens?.length ? inline(tt.tokens, f, o) : textRuns(unescapeHtml(tt.text), f, o);
+          return tt.tokens?.length
+            ? inline(tt.tokens, f, o)
+            : textRuns(unescapeHtml(tt.text), f, o);
         }
         case 'escape':
           return textRuns(unescapeHtml((t as Tokens.Escape).text), f, o);
@@ -133,7 +140,9 @@ function inline(tokens: Token[] | undefined, f: Fmt, o: RenderOptions): string {
           const l = t as Tokens.Link;
           const label = inline(l.tokens, f, o);
           const plain = unescapeHtml(l.text);
-          return l.href && l.href !== plain && !l.href.startsWith('#') ? `${label}${run(` (${l.href})`, f)}` : label;
+          return l.href && l.href !== plain && !l.href.startsWith('#')
+            ? `${label}${run(` (${l.href})`, f)}`
+            : label;
         }
         case 'image':
           return run(unescapeHtml((t as Tokens.Image).text), f);
@@ -148,7 +157,9 @@ function inline(tokens: Token[] | undefined, f: Fmt, o: RenderOptions): string {
 
 const TABLE_BORDERS =
   '<w:tblBorders>' +
-  ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map((s) => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="999999"/>`).join('') +
+  ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']
+    .map((s) => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="999999"/>`)
+    .join('') +
   '</w:tblBorders>';
 
 function table(t: Tokens.Table, o: RenderOptions): string {
@@ -184,7 +195,10 @@ function list(l: Tokens.List, depth: number, sectionLevel: number, o: RenderOpti
         out.push(...list(child as Tokens.List, depth + 1, sectionLevel, o));
         continue;
       }
-      const runs = child.type === 'text' || child.type === 'paragraph' ? inline((child as Tokens.Text).tokens ?? [child], {}, o) : '';
+      const runs =
+        child.type === 'text' || child.type === 'paragraph'
+          ? inline((child as Tokens.Text).tokens ?? [child], {}, o)
+          : '';
       if (!runs && !first) {
         out.push(...blocks([child], sectionLevel, o));
         continue;
@@ -192,7 +206,12 @@ function list(l: Tokens.List, depth: number, sectionLevel: number, o: RenderOpti
       if (first) {
         // Ohne Listenstil in der Vorlage: Aufzählungszeichen von Hand, mit hängendem Einzug.
         const marker = style ? '' : `${run(l.ordered ? `${n}.` : '•')}<w:r><w:tab/></w:r>`;
-        out.push(para(marker + runs, { style, ...(style ? {} : { ind: { left: 360 * (depth + 1), hanging: 360 } }) }));
+        out.push(
+          para(marker + runs, {
+            style,
+            ...(style ? {} : { ind: { left: 360 * (depth + 1), hanging: 360 } }),
+          }),
+        );
         first = false;
       } else {
         out.push(para(runs, { ind: { left: 360 * (depth + 1) } }));
@@ -228,13 +247,22 @@ export function blocks(tokens: Token[], sectionLevel: number, o: RenderOptions):
         break;
       case 'code': {
         const lines = unescapeHtml((t as Tokens.Code).text).split('\n');
-        out.push(para(lines.map((l, i) => (i ? '<w:r><w:br/></w:r>' : '') + run(l, { code: true })).join(''), { ind: { left: 360 } }));
+        out.push(
+          para(
+            lines.map((l, i) => (i ? '<w:r><w:br/></w:r>' : '') + run(l, { code: true })).join(''),
+            { ind: { left: 360 } },
+          ),
+        );
         break;
       }
       case 'blockquote': {
         const style = o.styles.id('quote');
         for (const b of blocks((t as Tokens.Blockquote).tokens, sectionLevel, o)) {
-          out.push(style ? b.replace('<w:p>', `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>`) : b.replace('<w:p>', '<w:p><w:pPr><w:ind w:left="567"/></w:pPr>'));
+          out.push(
+            style
+              ? b.replace('<w:p>', `<w:p><w:pPr><w:pStyle w:val="${style}"/></w:pPr>`)
+              : b.replace('<w:p>', '<w:p><w:pPr><w:ind w:left="567"/></w:pPr>'),
+          );
         }
         break;
       }

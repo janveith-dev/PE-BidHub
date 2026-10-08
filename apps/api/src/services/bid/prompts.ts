@@ -19,7 +19,9 @@ export function termsBlock(analysis: Pick<SpecAnalysis, 'customerTerms' | 'forma
   const terms = analysis.customerTerms.length
     ? analysis.customerTerms.map((t) => `„${t.term}" (${t.note})`).join('; ')
     : 'keine besonderen Vorgaben';
-  const rules = analysis.formalRules.length ? analysis.formalRules.map((r) => `- ${r}`).join('\n') : '- keine';
+  const rules = analysis.formalRules.length
+    ? analysis.formalRules.map((r) => `- ${r}`).join('\n')
+    : '- keine';
   return `Begriffe des Auftraggebers: ${terms}\nFormvorgaben des Auftraggebers:\n${rules}`;
 }
 
@@ -37,7 +39,9 @@ Aufgabe:
 
 Regeln: Ergänze keine Anforderungen, die nicht in der Vorgabe stehen. Wenn etwas unklar oder widersprüchlich ist, nimm es als info-Eintrag mit dem Hinweis „unklar: …" auf. Gliedere nicht tiefer als drei Ebenen. Kapitelnummern fortlaufend (1, 1.1, 2 …).`;
 
-export const RESEARCHER_SYSTEM = (opts: { allowWeb: boolean }): string => `Du bist Wissens- und Web-Rechercheur im Bid-Team der public edge GmbH. Für ein Kapitel eines Angebotsdokuments sammelst du belegte Fakten. Du schreibst keinen Fließtext.
+export const RESEARCHER_SYSTEM = (opts: {
+  allowWeb: boolean;
+}): string => `Du bist Wissens- und Web-Rechercheur im Bid-Team der public edge GmbH. Für ein Kapitel eines Angebotsdokuments sammelst du belegte Fakten. Du schreibst keinen Fließtext.
 
 ${COMPANY}
 
@@ -92,7 +96,11 @@ Aufgabe:
 
 Regeln: Markierungen [F#] verweisen auf Fakten desselben Kapitels. [OFFEN: …] sind bewusst gesetzte Lücken — melde sie nicht als Fehler des Autors, aber berücksichtige sie in der Abdeckung. Prüfe nur gegen den gelieferten Text und die gelieferten Fakten; erfinde keine Anforderungen.`;
 
-export const REVISER_SYSTEM = (p: { language: string; analysis: Pick<SpecAnalysis, 'customerTerms' | 'formalRules'>; maxWords: number | null }): string => `Du bist Lektor im Bid-Team der public edge GmbH und überarbeitest ein Kapitel eines Angebotsdokuments nach Anweisung.
+export const REVISER_SYSTEM = (p: {
+  language: string;
+  analysis: Pick<SpecAnalysis, 'customerTerms' | 'formalRules'>;
+  maxWords: number | null;
+}): string => `Du bist Lektor im Bid-Team der public edge GmbH und überarbeitest ein Kapitel eines Angebotsdokuments nach Anweisung.
 
 Regeln:
 - Setze die Anweisung um und ändere sonst nichts am Inhalt.

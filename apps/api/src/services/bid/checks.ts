@@ -41,7 +41,10 @@ export function openPoints(content: string): string[] {
 }
 
 /** Entfernt Marken, die zu keinem Fakt des Kapitels gehören. Eine erfundene Quelle ist schlimmer als keine. */
-export function stripUnknownMarkers(content: string, facts: Fact[]): { content: string; removed: string[] } {
+export function stripUnknownMarkers(
+  content: string,
+  facts: Fact[],
+): { content: string; removed: string[] } {
   const known = new Set(facts.map((f) => f.id));
   const removed: string[] = [];
   const cleaned = content.replace(FACT_MARKER, (marker, n: string) => {
@@ -76,7 +79,10 @@ export interface SectionForChecks {
  * Prüfungen, die kein Modell braucht und die deshalb nicht von dessen Urteil abhängen:
  * Länge, Quellenmarken, offene Punkte und Gültigkeit der verwendeten Quellen.
  */
-export function deterministicFindings(sections: SectionForChecks[], opts: { today: string; deadline: string | null }): Omit<Finding, 'id'>[] {
+export function deterministicFindings(
+  sections: SectionForChecks[],
+  opts: { today: string; deadline: string | null },
+): Omit<Finding, 'id'>[] {
   const out: Omit<Finding, 'id'>[] = [];
   const label = (s: SectionForChecks) => `Kapitel ${s.number} „${s.title}"`;
 
@@ -84,21 +90,38 @@ export function deterministicFindings(sections: SectionForChecks[], opts: { toda
     const words = countWords(s.content);
     if (s.maxWords && words > s.maxWords) {
       out.push({
-        severity: 'blocker', kind: 'length', sectionId: s.outlineId,
+        severity: 'blocker',
+        kind: 'length',
+        sectionId: s.outlineId,
         message: `${label(s)} hat ${words} Wörter; zulässig sind höchstens ${s.maxWords}.`,
       });
     }
     if (!s.content.trim()) {
-      out.push({ severity: 'blocker', kind: 'coverage', sectionId: s.outlineId, message: `${label(s)} ist leer.` });
+      out.push({
+        severity: 'blocker',
+        kind: 'coverage',
+        sectionId: s.outlineId,
+        message: `${label(s)} ist leer.`,
+      });
       continue;
     }
     for (const point of openPoints(s.content)) {
-      out.push({ severity: 'major', kind: 'coverage', sectionId: s.outlineId, message: `${label(s)}: offener Punkt — ${point}` });
+      out.push({
+        severity: 'major',
+        kind: 'coverage',
+        sectionId: s.outlineId,
+        message: `${label(s)}: offener Punkt — ${point}`,
+      });
     }
     const known = new Set(s.facts.map((f) => f.id));
     const unknown = [...new Set(factMarkers(s.content).filter((m) => !known.has(m)))];
     if (unknown.length) {
-      out.push({ severity: 'major', kind: 'unsupported_claim', sectionId: s.outlineId, message: `${label(s)} verweist auf unbekannte Quellenmarken: ${unknown.join(', ')}.` });
+      out.push({
+        severity: 'major',
+        kind: 'unsupported_claim',
+        sectionId: s.outlineId,
+        message: `${label(s)} verweist auf unbekannte Quellenmarken: ${unknown.join(', ')}.`,
+      });
     }
 
     const used = new Set(factMarkers(s.content));
@@ -106,12 +129,16 @@ export function deterministicFindings(sections: SectionForChecks[], opts: { toda
       if (!fact.validUntil) continue;
       if (fact.validUntil < opts.today) {
         out.push({
-          severity: 'blocker', kind: 'stale_source', sectionId: s.outlineId,
+          severity: 'blocker',
+          kind: 'stale_source',
+          sectionId: s.outlineId,
           message: `${label(s)} stützt sich auf „${fact.sourceTitle}", gültig bis ${fact.validUntil} — abgelaufen.`,
         });
       } else if (opts.deadline && fact.validUntil < opts.deadline) {
         out.push({
-          severity: 'major', kind: 'stale_source', sectionId: s.outlineId,
+          severity: 'major',
+          kind: 'stale_source',
+          sectionId: s.outlineId,
           message: `${label(s)} stützt sich auf „${fact.sourceTitle}", gültig bis ${fact.validUntil} — läuft vor der Abgabefrist (${opts.deadline}) ab.`,
         });
       }
