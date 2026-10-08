@@ -78,6 +78,8 @@ export const ChatRequestSchema = z.object({
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
 export const ChatSourceSchema = z.object({
+  /** Marke im Antworttext, z. B. „Q2". */
+  ref: z.string(),
   documentId: z.string().uuid(),
   title: z.string(),
   heading: z.string().nullable(),
