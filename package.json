@@ -1,0 +1,31 @@
+{
+  "name": "bid-hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Presales-Wissensbasis, Sales-Chat mit Sprache und Bid-Studio mit KI-Agenten",
+  "engines": { "node": ">=22" },
+  "packageManager": "pnpm@10.9.0",
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" build && pnpm -r --filter \"./apps/*\" build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dev": "pnpm --parallel --filter @bid/api --filter @bid/web dev",
+    "db:migrate": "pnpm --filter @bid/api db:migrate",
+    "seed": "pnpm --filter @bid/api seed",
+    "template:build": "pnpm --filter @bid/api template:build"
+  },
+  "pnpm": { "onlyBuiltDependencies": ["esbuild"] },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^22.13.0",
+    "eslint": "^9.20.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0",
+    "vitest": "^3.0.5"
+  }
+}
