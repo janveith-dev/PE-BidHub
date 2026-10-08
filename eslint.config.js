@@ -11,6 +11,22 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
   {
+    // Browsertest: läuft in Node, ruft aber Code im Browser (page.evaluate) auf.
+    files: ['e2e/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        document: 'readonly',
+        window: 'readonly',
+      },
+    },
+    rules: { 'no-empty': ['error', { allowEmptyCatch: true }] },
+  },
+  {
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',

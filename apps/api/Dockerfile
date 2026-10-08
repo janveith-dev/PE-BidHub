@@ -13,6 +13,8 @@ RUN pnpm install --frozen-lockfile --filter @bid/api...
 COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY apps/api apps/api
+# Demodaten für `pnpm seed` (frei erfundene Beispiele, siehe demo-data/).
+COPY demo-data demo-data
 
 # Hochgeladene Dateien liegen im Volume /data; der Ordner gehört dem Betriebsbenutzer.
 RUN mkdir -p /data && chown node:node /data

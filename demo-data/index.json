@@ -1,0 +1,55 @@
+[
+  {
+    "file": "betriebskonzept.md",
+    "title": "Betriebskonzept Rechenzentrum (Beispiel)",
+    "category": "concept",
+    "vendor": "Demo",
+    "tags": ["incident", "change", "service desk"]
+  },
+  {
+    "file": "sicherheitskonzept.md",
+    "title": "Sicherheitskonzept (Beispiel)",
+    "category": "concept",
+    "vendor": "Demo",
+    "tags": ["sicherheit", "backup"]
+  },
+  {
+    "file": "zertifikat-iso27001-beispiel.md",
+    "title": "Beispielzertifikat ISO/IEC 27001",
+    "category": "certificate",
+    "vendor": "Demo",
+    "tags": ["iso", "zertifikat"],
+    "validUntil": "2027-12-31"
+  },
+  {
+    "file": "datenblatt-server-beispiel.md",
+    "title": "Datenblatt Beispielserver DEMO-2U-100",
+    "category": "product",
+    "vendor": "Demo Hersteller",
+    "tags": ["server"],
+    "validUntil": "2028-06-30"
+  },
+  {
+    "file": "datenblatt-alt.md",
+    "title": "Datenblatt Beispielserver DEMO-2U-050 (Auslaufmodell)",
+    "category": "product",
+    "vendor": "Demo Hersteller",
+    "tags": ["server"],
+    "validUntil": "2025-12-31"
+  },
+  {
+    "file": "preisliste-beispiel.md",
+    "title": "Beispielpreisliste Server und Speicher",
+    "category": "pricelist",
+    "vendor": "Demo Hersteller",
+    "tags": ["preis"],
+    "validUntil": "2026-11-30"
+  },
+  {
+    "file": "referenz-beispiel.md",
+    "title": "Referenzprojekt Musterstadt: Rechenzentrumsmigration",
+    "category": "reference",
+    "vendor": "Demo",
+    "tags": ["migration", "itil"]
+  }
+]

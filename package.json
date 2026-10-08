@@ -19,7 +19,7 @@
     "dev": "pnpm --parallel --filter @bid/api --filter @bid/web dev",
     "db:migrate": "pnpm --filter @bid/api db:migrate",
     "seed": "pnpm --filter @bid/api seed",
-    "template:build": "pnpm --filter @bid/api template:build"
+    "e2e": "bash e2e/run.sh"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -30,6 +30,7 @@
     "@eslint/js": "^9.20.0",
     "@types/node": "^22.13.0",
     "eslint": "^9.20.0",
+    "playwright-core": "^1.50.1",
     "prettier": "^3.4.2",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.24.0",

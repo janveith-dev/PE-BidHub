@@ -7,5 +7,5 @@
     "types": ["node"],
     "paths": { "@bid/shared": ["../../packages/shared/src/index.ts"] }
   },
-  "include": ["src/**/*", "build.ts"]
+  "include": ["src/**/*"]
 }
