@@ -40,6 +40,8 @@ CREATE TABLE chunks (
                 to_tsvector('german', coalesce(heading, '') || ' ' || content) ||
                 to_tsvector('english', coalesce(heading, '') || ' ' || content)
               ) STORED,
+  -- Vektoren verschiedener Modelle sind nicht vergleichbar; gesucht wird nur im aktuellen Modell.
+  embedding_model text,
   embedding   vector(384)
 );
 CREATE INDEX chunks_document_idx ON chunks (document_id, ordinal);
