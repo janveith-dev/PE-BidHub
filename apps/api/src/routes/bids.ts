@@ -4,6 +4,8 @@ import {
   BidDocumentOptionsSchema,
   CreateBidSchema,
   SpecAnalysisSchema,
+  type BidDocumentDto,
+  type SectionDto,
   type SpecAnalysis,
 } from '@bid/shared';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
@@ -41,7 +43,7 @@ import { roleOf } from './helpers.js';
 
 const uuid = z.uuid();
 
-const documentDto = (d: BidDocumentRow) => ({
+const documentDto = (d: BidDocumentRow): BidDocumentDto => ({
   id: d.id,
   bidId: d.bid_id,
   title: d.title,
@@ -58,7 +60,7 @@ const documentDto = (d: BidDocumentRow) => ({
   updatedAt: d.updated_at,
 });
 
-const sectionDto = (s: SectionRow) => ({
+const sectionDto = (s: SectionRow): SectionDto => ({
   id: s.id,
   ordinal: s.ordinal,
   outlineId: s.outline_id,
