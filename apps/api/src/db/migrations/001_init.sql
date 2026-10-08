@@ -114,6 +114,7 @@ CREATE TABLE bid_documents (
   findings            jsonb,
   review_summary      text,
   template_id         uuid REFERENCES templates (id) ON DELETE SET NULL,
+  options             jsonb NOT NULL DEFAULT '{}',
   error               text,
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now()
@@ -138,6 +139,8 @@ CREATE TABLE bid_sections (
   content         text NOT NULL DEFAULT '',
   notes           text NOT NULL DEFAULT '',
   version         integer NOT NULL DEFAULT 0,
+  -- Wer die aktuelle Fassung geschrieben hat (agent:… oder user:…); wandert beim Überschreiben in die Versionshistorie.
+  last_author     text NOT NULL DEFAULT '',
   updated_at      timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX bid_sections_doc_idx ON bid_sections (bid_document_id, ordinal);

@@ -98,6 +98,8 @@ export const RequirementSchema = z.object({
   topic: z.string(),
   /** Wörtliches Zitat aus der Kundenvorgabe, damit der Bid Manager es prüfen kann. */
   sourceQuote: z.string().optional(),
+  /** Vom Server gesetzt: kommt das Zitat tatsächlich in der Vorgabe vor? */
+  quoteVerified: z.boolean().optional(),
 });
 export type Requirement = z.infer<typeof RequirementSchema>;
 
@@ -137,6 +139,11 @@ export const FactSchema = z.object({
   sourceTitle: z.string(),
   quote: z.string().optional(),
   validUntil: z.string().nullable().optional(),
+  /**
+   * kb: das Zitat steht nachweislich im Fundstück. web: nur die Adresse stammt nachweislich aus der
+   * Websuche, der Inhalt des Zitats ist nicht maschinell prüfbar.
+   */
+  quoteVerified: z.boolean().optional(),
 });
 export type Fact = z.infer<typeof FactSchema>;
 
@@ -168,3 +175,10 @@ export const CreateBidSchema = z.object({
 export type CreateBid = z.infer<typeof CreateBidSchema>;
 
 export const UserRoleSchema = z.enum(USER_ROLES);
+
+/** Optionen je Dokument. */
+export const BidDocumentOptionsSchema = z.object({
+  /** Websuche für Recherche und Autoren zulassen. */
+  allowWeb: z.boolean().default(true),
+});
+export type BidDocumentOptions = z.infer<typeof BidDocumentOptionsSchema>;

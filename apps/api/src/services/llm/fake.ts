@@ -29,11 +29,18 @@ export class FakeLlm implements Llm {
   }
 }
 
-/** Ruft ein Werkzeug der Anfrage so auf, wie es das Modell täte (inklusive Eingabeprüfung). */
+/**
+ * Ruft ein Werkzeug der Anfrage so auf, wie es das Modell täte: Eingabeprüfung inklusive, und Fehler
+ * kommen — wie in der echten Schleife — als Text zurück statt als Ausnahme.
+ */
 export async function callTool(req: AgentRequest<never>, name: string, input: unknown): Promise<string> {
   const tool = req.tools?.find((t) => t.name === name);
   if (!tool) throw new Error(`Werkzeug ${name} ist in dieser Anfrage nicht vorhanden`);
   const parsed = tool.schema.safeParse(input);
-  if (!parsed.success) return `Ungültige Eingabe: ${parsed.error.message}`;
-  return tool.run(parsed.data as never);
+  if (!parsed.success) return `FEHLER: Ungültige Eingabe: ${parsed.error.message}`;
+  try {
+    return await tool.run(parsed.data as never);
+  } catch (error) {
+    return `FEHLER: ${error instanceof Error ? error.message : String(error)}`;
+  }
 }
