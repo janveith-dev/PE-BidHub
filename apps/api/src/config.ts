@@ -22,6 +22,8 @@ export interface Config {
   mlServiceUrl: string | undefined;
   elevenLabs: { apiKey: string | undefined; voiceId: string; modelId: string };
   embeddingDim: number;
+  /** Absender in Deckblatt und Dokumenteigenschaften. */
+  companyName: string;
 }
 
 function list(value: string | undefined): string[] {
@@ -57,5 +59,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       modelId: env.ELEVENLABS_MODEL_ID ?? 'eleven_multilingual_v2',
     },
     embeddingDim: 384,
+    companyName: env.COMPANY_NAME ?? 'public edge GmbH',
   };
 }

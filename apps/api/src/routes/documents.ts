@@ -60,6 +60,7 @@ export async function registerDocumentRoutes(app: FastifyInstance, ctx: AppConte
     let file: { buffer: Buffer; filename: string; mime: string } | undefined;
     for await (const part of req.parts()) {
       if (part.type === 'file') {
+        if (file) throw badRequest('Bitte jeweils nur eine Datei hochladen.');
         const buffer = await part.toBuffer();
         if (part.file.truncated) throw new HttpError(413, `Die Datei ist größer als ${MAX_UPLOAD_BYTES / 1024 / 1024} MB.`);
         file = { buffer, filename: part.filename, mime: part.mimetype };

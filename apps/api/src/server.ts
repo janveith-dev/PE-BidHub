@@ -7,9 +7,12 @@ import { loadConfig } from './config.js';
 import type { AppContext } from './context.js';
 import { openDb } from './db/client.js';
 import { migrate } from './db/migrate.js';
+import { registerBidRoutes } from './routes/bids.js';
 import { registerChatRoutes } from './routes/chat.js';
 import { registerDocumentRoutes } from './routes/documents.js';
 import { registerVoiceRoutes } from './routes/voice.js';
+import { BidPipeline } from './services/bid/pipeline.js';
+import { recoverInterruptedJobs } from './services/bid/store.js';
 import { createEmbedder } from './services/embeddings.js';
 import { createLlm, LlmOutputError, LlmRefusalError } from './services/llm/index.js';
 import { ElevenLabsTextToSpeech, MlOcr, MlSpeechToText } from './services/voice.js';
@@ -17,6 +20,8 @@ import { ElevenLabsTextToSpeech, MlOcr, MlSpeechToText } from './services/voice.
 export async function createContext(config = loadConfig()): Promise<AppContext> {
   const db = await openDb(config.databaseUrl);
   await migrate(db);
+  // Läufe, die ein Neustart unterbrochen hat, stehen sonst für immer auf „in Arbeit".
+  await recoverInterruptedJobs(db);
   return {
     config,
     db,
@@ -47,6 +52,12 @@ export function describeError(error: unknown): { status: number; message: string
   return { status: 500, message: 'Interner Serverfehler' };
 }
 
+declare module 'fastify' {
+  interface FastifyInstance {
+    pipeline: BidPipeline;
+  }
+}
+
 export async function buildServer(ctx: AppContext) {
   const app = Fastify({
     logger:
@@ -63,13 +74,16 @@ export async function buildServer(ctx: AppContext) {
   });
 
   await app.register(cors, { origin: ctx.config.corsOrigins });
-  await app.register(multipart, { limits: { fileSize: 100 * 1024 * 1024, files: 1, fields: 20 } });
+  await app.register(multipart, { limits: { fileSize: 100 * 1024 * 1024, files: 10, fields: 20 } });
 
   app.get('/api/health', async () => ({ status: 'ok', time: new Date().toISOString() }));
 
   await registerDocumentRoutes(app, ctx);
   await registerChatRoutes(app, ctx);
   await registerVoiceRoutes(app, ctx);
+  const pipeline = new BidPipeline(ctx);
+  app.decorate('pipeline', pipeline);
+  await registerBidRoutes(app, ctx, pipeline);
 
   app.setErrorHandler((error: unknown, _req: FastifyRequest, reply: FastifyReply) => {
     const { status, message } = describeError(error);
