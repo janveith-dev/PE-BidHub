@@ -814,6 +814,18 @@ td.num {
   overflow-y: auto;
   max-height: 36rem;
 }
+/* Kapitelliste neben dem Editor, auf schmalen Bildschirmen untereinander. Eine Klasse statt Inline-Style: Letzterer würde die Medienregel überschreiben. */
+.sections-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .sections-layout {
+    grid-template-columns: 1fr;
+  }
+}
 .section-list {
   display: grid;
   gap: 0.35rem;
@@ -850,11 +862,23 @@ td.num {
   flex: 0 0 4.2rem;
 }
 .log .a {
-  flex: 0 0 8rem;
+  flex: 0 0 11.5rem;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+@media (max-width: 800px) {
+  /* Zeit und Agent in einer Zeile, der Text darunter: sonst bleibt für die Meldung kaum Breite. */
+  .log div {
+    flex-wrap: wrap;
+  }
+  .log .a {
+    flex: 1 1 0;
+  }
+  .log div > span:last-child {
+    flex-basis: 100%;
+  }
 }
 .log .error {
   color: var(--bad);

@@ -158,7 +158,15 @@ export type CoverageItem = z.infer<typeof CoverageItemSchema>;
 export const FindingSchema = z.object({
   id: z.string(),
   severity: z.enum(['blocker', 'major', 'minor']),
-  kind: z.enum(['coverage', 'unsupported_claim', 'length', 'stale_source', 'consistency', 'style']),
+  kind: z.enum([
+    'coverage',
+    'open_point',
+    'unsupported_claim',
+    'length',
+    'stale_source',
+    'consistency',
+    'style',
+  ]),
   sectionId: z.string().optional(),
   requirementId: z.string().optional(),
   message: z.string(),

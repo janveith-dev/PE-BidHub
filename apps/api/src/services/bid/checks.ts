@@ -108,7 +108,7 @@ export function deterministicFindings(
     for (const point of openPoints(s.content)) {
       out.push({
         severity: 'major',
-        kind: 'coverage',
+        kind: 'open_point',
         sectionId: s.outlineId,
         message: `${label(s)}: offener Punkt — ${point}`,
       });

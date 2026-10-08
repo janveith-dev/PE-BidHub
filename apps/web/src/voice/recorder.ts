@@ -37,6 +37,8 @@ export const DEFAULT_VAD: VadOptions = {
 
 export interface RecorderHandlers {
   onLevel?: (level: number) => void;
+  /** Die Messung des Grundrauschens ist abgeschlossen; ab jetzt wird auf Sprache gehört. */
+  onReady?: () => void;
   onSpeechStart?: () => void;
   onUtterance: (wav: Blob, speechMs: number) => void;
   onError?: (error: Error) => void;
@@ -136,6 +138,11 @@ export class VadDetector {
     },
   ) {}
 
+  /** false, solange das Grundrauschen noch gemessen wird. */
+  get ready(): boolean {
+    return this.calibratedMs >= this.opts.calibrateMs;
+  }
+
   get threshold(): number {
     return Math.max(this.opts.minThreshold, this.noise * this.opts.noiseFactor);
   }
@@ -214,6 +221,7 @@ export class VadRecorder {
   private node: AudioWorkletNode | undefined;
   private detector: VadDetector | undefined;
   private paused = false;
+  private announcedReady = false;
 
   constructor(
     private readonly handlers: RecorderHandlers,
@@ -270,7 +278,12 @@ export class VadRecorder {
     this.node = new AudioWorkletNode(this.ctx, 'bid-capture');
     this.node.port.onmessage = (e: MessageEvent<Float32Array>) => {
       if (this.paused || !this.detector) return;
-      this.handlers.onLevel?.(Math.min(1, this.detector.feed(e.data) * 8));
+      const level = this.detector.feed(e.data);
+      if (!this.announcedReady && this.detector.ready) {
+        this.announcedReady = true;
+        this.handlers.onReady?.();
+      }
+      this.handlers.onLevel?.(Math.min(1, level * 8));
     };
     source.connect(this.node); // bewusst nicht an die Ausgabe: Das Mikrofon soll nicht mitlaufen.
   }

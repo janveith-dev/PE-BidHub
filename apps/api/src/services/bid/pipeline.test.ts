@@ -474,7 +474,7 @@ describe('Bid-Pipeline', () => {
     expect(Object.keys(cov)).toEqual(['R-001', 'R-002', 'R-003', 'R-004']); // R-099 des Prüfers wurde verworfen
 
     const kinds = doc.findings!.map((f) => `${f.severity}/${f.kind}`);
-    expect(kinds).toContain('major/coverage'); // [OFFEN] im Monitoring-Kapitel
+    expect(kinds).toContain('major/open_point'); // [OFFEN] im Monitoring-Kapitel
     expect(kinds).toContain('minor/style'); // Befund des Prüfers
     expect(doc.findings![0]!.id).toBe('B-001');
     expect(doc.findings!.map((f) => f.severity)).toEqual(

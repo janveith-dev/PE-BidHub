@@ -21,6 +21,10 @@ export function ReviewView({
     mutationFn: (force: boolean) => api.post(`/api/bid-documents/${doc.id}/review`, { force }),
     onSuccess: refresh,
   });
+  const rewrite = useMutation({
+    mutationFn: (sectionId: string) => api.post(`/api/bid-sections/${sectionId}/rewrite`, {}),
+    onSuccess: refresh,
+  });
   const fix = useMutation({
     mutationFn: (v: { sectionId: string; message: string }) =>
       api.post(`/api/bid-sections/${v.sectionId}/revise`, {
@@ -64,7 +68,7 @@ export function ReviewView({
             {doc.coverage ? 'Prüfung wiederholen' : 'Prüfung starten'}
           </button>
         </div>
-        <ErrorNotice error={review.error ?? fix.error} />
+        <ErrorNotice error={review.error ?? fix.error ?? rewrite.error} />
       </section>
 
       {doc.coverage && doc.status === 'written' && (
@@ -115,7 +119,7 @@ export function ReviewView({
                         {f.requirementId && <span className="mono muted">{f.requirementId}</span>}
                       </div>
                       <p style={{ margin: '.35rem 0 0' }}>{f.message}</p>
-                      {s && f.kind !== 'stale_source' && f.kind !== 'length' && (
+                      {s && !['stale_source', 'length', 'open_point'].includes(f.kind) && (
                         <div style={{ marginTop: '.4rem' }}>
                           <button
                             className="small"
@@ -133,11 +137,28 @@ export function ReviewView({
                           beheben.
                         </p>
                       )}
-                      {f.kind === 'stale_source' && (
-                        <p className="muted small" style={{ margin: '.3rem 0 0' }}>
-                          Aktualisierte Unterlage in der Wissensbasis hochladen, dann das Kapitel
-                          neu schreiben lassen.
-                        </p>
+                      {(f.kind === 'stale_source' || f.kind === 'open_point') && (
+                        <div style={{ marginTop: '.4rem' }}>
+                          <p className="muted small" style={{ margin: '0 0 .4rem' }}>
+                            {f.kind === 'open_point'
+                              ? 'Hier fehlt ein Beleg in der Wissensbasis. '
+                              : 'Die Quelle ist nicht mehr gültig. '}
+                            Presales lädt die passende, aktuelle Unterlage hoch; danach das Kapitel
+                            neu recherchieren lassen. Der Lektor erfindet keine fehlenden Belege.
+                          </p>
+                          <div className="row">
+                            <a href="#/wissen">Zur Wissensbasis</a>
+                            {s && (
+                              <button
+                                className="small"
+                                disabled={!ready || rewrite.isPending}
+                                onClick={() => rewrite.mutate(s.id)}
+                              >
+                                Kapitel neu recherchieren
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
                   );

@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { BidDocumentDetailDto, SectionDto, SectionVersionDto } from '@bid/shared';
 import { api } from '../../api';
 import { Markdown } from '../../components/Markdown';
 import { ErrorNotice, Loading, Notice, Spinner, formatDateTime } from '../../components/ui';
-import { roleLabel, SECTION_STATUS_LABEL } from './labels';
+import { authorLabel, roleLabel, SECTION_STATUS_LABEL } from './labels';
 
 const OPEN_POINTS = /\[OFFEN:/g;
 
@@ -85,10 +85,7 @@ export function SectionsView({
   };
 
   return (
-    <div
-      className="grid-2"
-      style={{ gridTemplateColumns: 'minmax(14rem, 18rem) minmax(0, 1fr)', alignItems: 'start' }}
-    >
+    <div className="sections-layout">
       <div className="stack-sm">
         {failed > 0 && !busy && (
           <button
@@ -142,9 +139,7 @@ export function SectionsView({
                     ? ` (Richtwert ${sel.targetWords})`
                     : ''}{' '}
                 · Fassung {sel.version}
-                {sel.lastAuthor
-                  ? ` von ${sel.lastAuthor.replace('agent:', 'KI ').replace('user:', '')}`
-                  : ''}
+                {sel.lastAuthor ? ` von ${authorLabel(sel.lastAuthor)}` : ''}
               </p>
             </div>
             <span
@@ -349,14 +344,6 @@ function Versions({
       void qc.invalidateQueries({ queryKey: ['section-versions', section.id] });
     },
   });
-  const who = useMemo(
-    () => (a: string) =>
-      a
-        .replace('agent:writer:', 'Autor · ')
-        .replace('agent:lektor', 'Lektor (KI)')
-        .replace('user:', 'Bearbeitet von '),
-    [],
-  );
   return (
     <section className="card">
       <h2>Frühere Fassungen</h2>
@@ -369,7 +356,7 @@ function Versions({
           {versions.data.map((v) => (
             <details key={v.id} className="fact">
               <summary>
-                Fassung {v.version} · {who(v.author)} · {formatDateTime(v.created_at)}
+                Fassung {v.version} · {authorLabel(v.author)} · {formatDateTime(v.created_at)}
               </summary>
               <pre
                 style={{

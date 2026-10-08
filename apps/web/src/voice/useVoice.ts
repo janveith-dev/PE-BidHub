@@ -4,7 +4,7 @@ import { VadRecorder } from './recorder';
 import { Speaker, plainSpeech } from './speaker';
 
 export type DialogState =
-  'off' | 'listening' | 'hearing' | 'transcribing' | 'thinking' | 'speaking';
+  'off' | 'calibrating' | 'listening' | 'hearing' | 'transcribing' | 'thinking' | 'speaking';
 
 /** Whisper erfindet bei Rauschen gelegentlich Standardsätze aus seinen Trainingsdaten. Solche Treffer sind keine Frage. */
 const HALLUCINATIONS =
@@ -74,6 +74,7 @@ export function useVoiceDialog(options: DialogOptions) {
     setError(null);
     const rec = new VadRecorder({
       onLevel: setLevel,
+      onReady: () => setState((s) => (s === 'calibrating' ? 'listening' : s)),
       onSpeechStart: () => setState('hearing'),
       onUtterance: (wav) => void handleUtterance(wav),
       onError: (e) => setError(e.message),
@@ -86,7 +87,7 @@ export function useVoiceDialog(options: DialogOptions) {
     }
     recorder.current = rec;
     active.current = true;
-    setState('listening');
+    setState('calibrating');
   }, [handleUtterance]);
 
   const interrupt = useCallback(() => speaker.current.stop(), []);
@@ -98,6 +99,7 @@ export function useVoiceDialog(options: DialogOptions) {
 /** Diktat: eine Äußerung aufnehmen, erkennen und als Text zurückgeben (zum Prüfen vor dem Senden). */
 export function useDictation(onText: (text: string) => void, language: 'de' | 'en') {
   const [recording, setRecording] = useState(false);
+  const [calibrating, setCalibrating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [level, setLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +111,7 @@ export function useDictation(onText: (text: string) => void, language: 'de' | 'e
     recorder.current?.stop();
     recorder.current = undefined;
     setRecording(false);
+    setCalibrating(false);
     setLevel(0);
   }, []);
 
@@ -116,6 +119,7 @@ export function useDictation(onText: (text: string) => void, language: 'de' | 'e
     setError(null);
     const rec = new VadRecorder({
       onLevel: setLevel,
+      onReady: () => setCalibrating(false),
       onUtterance: (wav) => {
         stop();
         setBusy(true);
@@ -129,6 +133,7 @@ export function useDictation(onText: (text: string) => void, language: 'de' | 'e
     try {
       await rec.start();
       recorder.current = rec;
+      setCalibrating(true);
       setRecording(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -136,5 +141,12 @@ export function useDictation(onText: (text: string) => void, language: 'de' | 'e
   }, [language, stop]);
 
   useEffect(() => stop, [stop]);
-  return { recording, busy, level, error, toggle: () => (recording ? stop() : void start()) };
+  return {
+    recording,
+    calibrating,
+    busy,
+    level,
+    error,
+    toggle: () => (recording ? stop() : void start()),
+  };
 }

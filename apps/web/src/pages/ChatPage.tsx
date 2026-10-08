@@ -25,6 +25,7 @@ const SUGGESTIONS = [
 
 const DIALOG_TEXT: Record<DialogState, string> = {
   off: '',
+  calibrating: 'Einen Moment, ich messe das Umgebungsgeräusch …',
   listening: 'Ich höre zu – stelle deine Frage.',
   hearing: 'Ich höre dich …',
   transcribing: 'Ich verstehe dich …',
@@ -227,7 +228,7 @@ export function ChatPage({ sessionId: routeSession }: { sessionId: string | unde
         {dialog.active && (
           <div className="dialog-bar" role="status">
             <span
-              className={`pulse ${dialog.state === 'hearing' ? 'hearing' : dialog.state === 'speaking' ? 'speaking' : ['transcribing', 'thinking'].includes(dialog.state) ? 'busy' : ''}`}
+              className={`pulse ${dialog.state === 'hearing' ? 'hearing' : dialog.state === 'speaking' ? 'speaking' : ['calibrating', 'transcribing', 'thinking'].includes(dialog.state) ? 'busy' : ''}`}
             />
             <span className="grow">{DIALOG_TEXT[dialog.state]}</span>
             <span className="level" aria-hidden>
@@ -263,7 +264,9 @@ export function ChatPage({ sessionId: routeSession }: { sessionId: string | unde
             onKeyDown={onKey}
             placeholder={
               dictation.recording
-                ? 'Ich höre zu – sprich jetzt …'
+                ? dictation.calibrating
+                  ? 'Einen Moment …'
+                  : 'Ich höre zu – sprich jetzt …'
                 : 'Frage eingeben (Enter sendet, Umschalt+Enter = neue Zeile)'
             }
             aria-label="Nachricht"
@@ -280,7 +283,8 @@ export function ChatPage({ sessionId: routeSession }: { sessionId: string | unde
             }
             aria-pressed={dictation.recording}
           >
-            {dictation.busy ? <Spinner /> : '🎤'} {dictation.recording ? 'Hört zu' : 'Diktieren'}
+            {dictation.busy ? <Spinner /> : '🎤'}{' '}
+            {dictation.recording ? (dictation.calibrating ? 'Messe …' : 'Hört zu') : 'Diktieren'}
           </button>
           <button
             className={dialog.active ? 'danger' : ''}
